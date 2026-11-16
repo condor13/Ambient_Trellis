@@ -2,8 +2,11 @@
 #include <math.h>
 
 // Keep the hot audio code in RAM on the Pico (flash is slower).
-#if defined(ARDUINO_ARCH_RP2040)
-#include <pico/platform.h>
+// (Arduino.h on the Pico core already defines __not_in_flash_func.)
+#if defined(ARDUINO)
+#include <Arduino.h>
+#endif
+#if defined(__not_in_flash_func)
 #define AUDIO_FAST(f) __not_in_flash_func(f)
 #else
 #define AUDIO_FAST(f) f
