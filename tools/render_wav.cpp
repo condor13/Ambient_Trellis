@@ -1,15 +1,14 @@
 // Host test: runs the same sequencer + audio engine as the Pico and writes a
 // WAV file, so the sound can be checked without hardware.
 //
-//   g++ -O2 -std=c++17 -I AmbientTrellis tools/render_wav.cpp
-//     AmbientTrellis/AudioEngine.cpp AmbientTrellis/Sequencer.cpp AmbientTrellis/Reverb.cpp -o render_wav
-//   ./render_wav out.wav 120 [reverbWet 0-256] [stop-at-second]
+//   g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src/*/*.cpp -o render_wav
+//   ./render_wav out.wav [seconds] [reverbWet 0-256] [stop-at-second, -1 = never] [pluck density 0-16]
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
-#include "AudioEngine.h"
-#include "Sequencer.h"
+#include "audio/AudioEngine.h"
+#include "music/Sequencer.h"
 
 static void put32(FILE *f, uint32_t v) { fwrite(&v, 4, 1, f); }
 static void put16(FILE *f, uint16_t v) { fwrite(&v, 2, 1, f); }
@@ -24,6 +23,7 @@ int main(int argc, char **argv) {
   engine.init(12345);
   seq.begin(&engine, 777);
   if (argc > 3) engine.params.reverbWet = (uint32_t)atoi(argv[3]);
+  if (argc > 5) seq.setDensity((uint8_t)atoi(argv[5]));
   seq.start(0);
 
   const uint32_t blocks = (uint32_t)seconds * cfg::SAMPLE_RATE / cfg::BLOCK;

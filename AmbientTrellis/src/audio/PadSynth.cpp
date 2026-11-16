@@ -1,51 +1,34 @@
 // Optimize this file for speed (the Arduino-Pico default is size).
 #pragma GCC optimize("O2")
 
-#include "AudioEngine.h"
+#include "PadSynth.h"
 #include <math.h>
-
-#include "FastCode.h"
-#if defined(__not_in_flash_func)
-#define AUDIO_FAST(f) __not_in_flash_func(f)
-#else
-#define AUDIO_FAST(f) f
-#endif
+#include "../util/FastCode.h"
 
 // 2048-point sine table, built once in RAM. Index = phase >> 21.
 static int16_t sineTab[2048];
 
 static ALWAYS_INLINE int32_t sine(uint32_t phase) { return sineTab[phase >> 21]; }
 
-static constexpr int32_t ENV_MAX = (1 << 24) - 256;   // lvl full scale (Q24); >>8 stays <= 65535
-static constexpr int32_t IDX_MIN = 2500;      // FM index at the very start (almost a sine)
+static constexpr int32_t ENV_MAX = (1 << 24) - 256;   // envelope full scale (Q24); >>8 stays <= 65535
+static constexpr int32_t IDX_MIN = 2500;              // FM index at the very start (almost a sine)
 
-void AudioEngine::init(uint32_t seed) {
+void PadSynth::init(uint32_t seed) {
   for (int i = 0; i < 2048; i++) {
     sineTab[i] = (int16_t)lrintf(32767.0f * sinf(6.2831853f * (float)i / 2048.0f));
   }
   rng_.seed(seed);
-  comp_.setup(16000, 3, 9);
-  reverb_.init();
   for (auto &v : v_) {
     v = Voice{};
     v.state = IDLE;
   }
 }
 
-void AudioEngine::handleEvent(uint32_t ev) {
-  uint8_t cmd  = (ev >> 16) & 0xff;
-  uint8_t note = (ev >> 8) & 0xff;
-  uint8_t vel  = ev & 0xff;
-  switch (cmd) {
-    case EV_NOTE_ON:  noteOn(note, vel); break;
-    case EV_NOTE_OFF: noteOff(note); break;
-    case EV_ALL_OFF:
-      for (auto &v : v_) if (v.state == ON) v.state = RELEASE;
-      break;
-  }
+void PadSynth::releaseAll() {
+  for (auto &v : v_) if (v.state == ON) v.state = RELEASE;
 }
 
-void AudioEngine::noteOn(uint8_t note, uint8_t vel) {
+void PadSynth::noteOn(uint8_t note, uint8_t vel) {
   // Already sounding (or fading)? Then just bring it back up smoothly.
   for (auto &v : v_) {
     if (v.state != IDLE && v.note == note) {
@@ -111,12 +94,12 @@ void AudioEngine::noteOn(uint8_t note, uint8_t vel) {
   v.state = ON;
 }
 
-void AudioEngine::noteOff(uint8_t note) {
+void PadSynth::noteOff(uint8_t note) {
   for (auto &v : v_) if (v.state == ON && v.note == note) v.state = RELEASE;
 }
 
 // Runs once per block (1 kHz): envelopes, brightness, LFOs.
-void AudioEngine::controlUpdate() {
+void PadSynth::control(const SoundParams &params) {
   uint32_t atkMs = params.attackMs  ? params.attackMs  : 1;
   uint32_t relMs = params.releaseMs ? params.releaseMs : 1;
   uint32_t evoMs = params.evolveMs  ? params.evolveMs  : 1;
@@ -184,14 +167,7 @@ void AudioEngine::controlUpdate() {
   }
 }
 
-void AUDIO_FAST(AudioEngine::render)(int16_t *out, int frames) {
-  uint32_t ev;
-  while (events.pop(ev)) handleEvent(ev);
-
-  controlUpdate();
-
-  for (int i = 0; i < frames; i++) mixL_[i] = mixR_[i] = 0;
-
+void AUDIO_FAST(PadSynth::render)(int32_t *L, int32_t *R, int frames) {
   for (auto &v : v_) {
     if (v.state == IDLE) continue;
     uint32_t pm = v.phM, pl = v.phL, pr = v.phR;
@@ -204,8 +180,8 @@ void AUDIO_FAST(AudioEngine::render)(int16_t *out, int frames) {
       uint32_t o = (uint32_t)(m * idx);   // phase offset from the modulator
       int32_t sl = sine(pl + o);
       int32_t sr = sine(pr + o);
-      mixL_[i] += (sl * a) >> 16;
-      mixR_[i] += (sr * a) >> 16;
+      L[i] += (sl * a) >> 16;
+      R[i] += (sr * a) >> 16;
       pm += im; pl += il; pr += ir;
       a += as; idx += xs;
     }
@@ -213,16 +189,4 @@ void AUDIO_FAST(AudioEngine::render)(int16_t *out, int frames) {
     v.phM = pm; v.phL = pl; v.phR = pr;
     v.amp = a; v.idx = idx;
   }
-
-  // Master: headroom for ~4 full voices, then volume, reverb, compressor.
-  int32_t vol = (int32_t)params.volume;
-  for (int i = 0; i < frames; i++) {
-    mix_[2 * i]     = ((mixL_[i] >> 2) * vol) >> 8;
-    mix_[2 * i + 1] = ((mixR_[i] >> 2) * vol) >> 8;
-  }
-  int32_t wet = (int32_t)params.reverbWet;
-  if (wet > 256) wet = 256;
-  reverb_.decay = (int32_t)params.reverbDecay;
-  reverb_.process(mix_, frames, wet, 256 - wet / 2);
-  comp_.process(mix_, out, frames);
 }

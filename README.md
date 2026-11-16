@@ -175,6 +175,22 @@ General behaviour, not a menu setting:
 - The audio engine is plain C++ with no Arduino dependencies, so it can also be
   compiled on a computer to render a test WAV file.
 
+**[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)** explains all the math: fixed-point
+numbers, FM, the chord engine, Karplus-Strong strings, the reverb and more.
+
+### Code layout
+
+```
+AmbientTrellis/
+  AmbientTrellis.ino        setup and loop for both cores
+  src/Config.h              pins, sample rate, block size
+  src/util/                 random numbers, cross-core queue, speed macros
+  src/audio/                core 1: AudioEngine (mixer), PadSynth, PluckSynth,
+                            PluckDelay, Reverb, SoftComp, SoundParams, Events
+  src/music/                core 0: Sequencer (chords, voice leading, plucks)
+tools/render_wav.cpp        renders the same code to a WAV file on a computer
+```
+
 ### Libraries
 
 - Raspberry Pi Pico/RP2040 board package (Earle F. Philhower)
@@ -189,7 +205,8 @@ General behaviour, not a menu setting:
    `https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json`.
 3. In **Boards Manager**, install **Raspberry Pi Pico/RP2040** (Earle F. Philhower).
 4. Open `AmbientTrellis/AmbientTrellis.ino`.
-5. Select **Tools → Board → Raspberry Pi Pico** and **Tools → CPU Speed → 250 MHz**.
+5. Select **Tools → Board → Raspberry Pi Pico**, **Tools → CPU Speed → 250 MHz**
+   and **Tools → USB Stack → Pico SDK**.
 6. For the first upload, hold **BOOTSEL** while plugging in the Pico, then upload.
    After that, the normal serial port works.
 
@@ -198,19 +215,20 @@ General behaviour, not a menu setting:
 The audio engine and sequencer also compile on a PC, and render a WAV file:
 
 ```
-g++ -O2 -std=c++17 -I AmbientTrellis tools/render_wav.cpp AmbientTrellis/AudioEngine.cpp AmbientTrellis/Sequencer.cpp AmbientTrellis/Reverb.cpp -o render_wav
+g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src/*/*.cpp -o render_wav
 ./render_wav out.wav 120
 ```
 
-## Current state: step 2
+## Current state: step 3
 
 - Generative FM pad chords at 60 BPM, a new chord every 4 bars (16 s),
   in D Dorian. Starts playing at power-on.
 - Plate reverb (Dattorro style) with a ~8 s dark tail and slow modulation.
-  It uses about 50 KB of RAM and a few percent of core 1.
+- Rare, soft, high plucks (Karplus-Strong) from the current chord, about one
+  every 10-20 s, with a dotted-8th ping-pong delay and lots of reverb.
 - **SHIFT** (GP6) jumps to the next chord, for testing.
 - Serial Monitor (115200 baud) shows each chord and the audio CPU load.
-- No plucks, pads, LEDs or display yet.
+- No pad input, LEDs or display yet.
 
 ## Roadmap
 

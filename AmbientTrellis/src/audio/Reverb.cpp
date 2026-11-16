@@ -2,7 +2,7 @@
 #pragma GCC optimize("O2")
 
 #include "Reverb.h"
-#include "FastCode.h"
+#include "../util/FastCode.h"
 
 // Delay lengths from Dattorro's plate (designed at 29761 Hz), scaled to 32 kHz.
 namespace {
@@ -76,7 +76,7 @@ ALWAYS_INLINE int32_t Reverb::allpassMod(Line &l, int32_t x, int32_t g, int32_t 
   return d + ((g * v) >> 15);
 }
 
-void AUDIO_FAST(Reverb::process)(int32_t *mix, int frames, int32_t wet, int32_t dry) {
+void AUDIO_FAST(Reverb::process)(const int32_t *in, int32_t *out, int frames, int32_t wet) {
   // Slow modulation of the two tank allpasses (about 0.6 Hz), once per block
   lfo_ += 2576980u * (uint32_t)frames / 32u;
   int32_t lDel = (L_AP << 16) + lfoShape(lfo_) * EXC * 2;
@@ -85,10 +85,9 @@ void AUDIO_FAST(Reverb::process)(int32_t *mix, int frames, int32_t wet, int32_t 
   const int32_t dec = decay, damp = damping, bw = inputBw;
 
   for (int i = 0; i < frames; i++) {
-    int32_t inL = mix[2 * i], inR = mix[2 * i + 1];
 
     // Mono input with headroom, clamped to the 16-bit delay lines
-    int32_t x = (inL + inR) >> 2;
+    int32_t x = (in[2 * i] + in[2 * i + 1]) >> 2;
     if (x > 32767) x = 32767;
     if (x < -32768) x = -32768;
 
@@ -133,7 +132,7 @@ void AUDIO_FAST(Reverb::process)(int32_t *mix, int frames, int32_t wet, int32_t 
     yl = ((yl >> 2) * 19661) >> 13;   // * 0.6
     yr = ((yr >> 2) * 19661) >> 13;
 
-    mix[2 * i]     = ((inL * dry) >> 8) + ((yl * OUT_GAIN * wet) >> 8);
-    mix[2 * i + 1] = ((inR * dry) >> 8) + ((yr * OUT_GAIN * wet) >> 8);
+    out[2 * i]     += (yl * OUT_GAIN * wet) >> 8;
+    out[2 * i + 1] += (yr * OUT_GAIN * wet) >> 8;
   }
 }

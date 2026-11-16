@@ -5,7 +5,7 @@
 // Uses about 50 KB of RAM for its delay lines.
 #pragma once
 #include <stdint.h>
-#include "FastCode.h"
+#include "../util/FastCode.h"
 
 class Reverb {
  public:
@@ -16,9 +16,9 @@ class Reverb {
   int32_t damping = 16300;   // tank low-pass amount (higher = brighter)
   int32_t inputBw = 22000;   // input low-pass (higher = brighter)
 
-  // Adds the reverb to `mix` (interleaved stereo int32, 32767 = full scale).
-  // wet / dry are Q8 (256 = 1.0).
-  void process(int32_t *mix, int frames, int32_t wet, int32_t dry);
+  // Reads `in` (what is sent into the reverb) and adds the reverb to `out`.
+  // Both are interleaved stereo int32, 32767 = full scale. wet is Q8 (256 = 1.0).
+  void process(const int32_t *in, int32_t *out, int frames, int32_t wet);
 
  private:
   struct Line {

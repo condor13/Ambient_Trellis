@@ -1,12 +1,20 @@
-// Ambient Trellis - step 1: generative FM pad chords.
+// Ambient Trellis - step 3: generative FM pad chords, reverb, rare plucks.
 //
 // Core 0: chord sequencer (+ pads, LEDs, display later)
 // Core 1: audio engine -> PCM5102A over I2S
 //
 // Board: Raspberry Pi Pico (Arduino-Pico core by Earle Philhower)
-// Tools -> CPU Speed: 250 MHz (overclock) recommended (133 MHz also works for step 1)
+// Tools -> CPU Speed: 250 MHz (overclock)
+// Tools -> USB Stack: Pico SDK
 //
-// Step 1 test controls:
+// The code is organised in src/:
+//   src/Config.h   pins and audio constants
+//   src/util/      small helpers (random numbers, cross-core queue, RAM placement)
+//   src/audio/     everything on core 1: synths, effects, mixer
+//   src/music/     the generative sequencer (core 0)
+// docs/HOW_IT_WORKS.md explains the math.
+//
+// Test controls (until the pads and menu exist):
 //   The box starts playing by itself.
 //   SHIFT (GP6) = jump to the next chord now.
 //   Serial Monitor (115200) shows the chords and the audio CPU load.
@@ -15,9 +23,9 @@
 #include <Adafruit_TinyUSB.h>   // needed when Tools -> USB Stack is "Adafruit TinyUSB"
 #endif
 #include <I2S.h>
-#include "Config.h"
-#include "AudioEngine.h"
-#include "Sequencer.h"
+#include "src/Config.h"
+#include "src/audio/AudioEngine.h"
+#include "src/music/Sequencer.h"
 
 AudioEngine engine;
 Sequencer seq;
@@ -62,6 +70,14 @@ void loop() {
                   seq.chordName());
     for (int i = 0; i < k; i++) Serial.printf(" %s%d", Sequencer::noteName(n[i]), n[i] / 12 - 1);
     Serial.println();
+  }
+
+  // Print each pluck
+  static uint32_t plucksShown = 0;
+  if (seq.pluckCount() != plucksShown) {
+    plucksShown = seq.pluckCount();
+    uint8_t p = seq.lastPluckNote();
+    Serial.printf("    pluck %s%d\n", Sequencer::noteName(p), p / 12 - 1);
   }
 
   // Audio load every 5 s. One block is 1000 µs of audio.

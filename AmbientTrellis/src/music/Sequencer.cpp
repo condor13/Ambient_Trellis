@@ -45,7 +45,10 @@ const char *Sequencer::scaleName() const { return SCALES[scale_].name; }
 void Sequencer::begin(AudioEngine *engine, uint32_t seed) {
   eng_ = engine;
   rng_.seed(seed);
+  pluckRng_.seed(seed ^ 0x9E3779B9u);
   for (auto &p : pend_) p.used = false;
+  for (auto &p : pluckPend_) p.used = false;
+  applyTempo();
 }
 
 int Sequencer::notes(uint8_t *out) const {
@@ -58,12 +61,14 @@ void Sequencer::start(uint32_t nowMs) {
   playing_ = true;
   degree_ = 0;                     // always start at home
   playChord(degree_, nowMs);
+  nextEighthMs_ = nowMs + 4000;    // first plucks once the pad has swelled in
 }
 
 void Sequencer::stop() {
   if (!playing_) return;
   playing_ = false;
   for (auto &p : pend_) p.used = false;
+  for (auto &p : pluckPend_) p.used = false;
   nCur_ = 0;
   eng_->events.push(packEvent(EV_ALL_OFF));   // notes fade out with their release
   strcpy(name_, "-");
@@ -90,6 +95,65 @@ void Sequencer::tick(uint32_t nowMs) {
     degree_ = pickNextDegree();
     playChord(degree_, nowMs);
   }
+
+  tickPlucks(nowMs);
+}
+
+// The pluck delay is a dotted 8th (3/4 of a beat), so the echoes sit in time.
+void Sequencer::applyTempo() {
+  if (!eng_) return;
+  uint32_t bpm = bpm_ ? bpm_ : 60;
+  eng_->params.delaySamples = 32000u * 60u * 3u / (4u * bpm);
+}
+
+void Sequencer::tickPlucks(uint32_t nowMs) {
+  // Plucks that are due
+  for (auto &p : pluckPend_) {
+    if (p.used && (int32_t)(nowMs - p.at) >= 0) {
+      eng_->events.push(packEvent(EV_PLUCK, p.note, p.vel));
+      p.used = false;
+      lastSent_ = p.note;
+      pluckCount_++;
+    }
+  }
+
+  if ((int32_t)(nowMs - nextEighthMs_) < 0) return;
+  nextEighthMs_ += 30000u / (bpm_ ? bpm_ : 60);   // next 8th note
+
+  // Chance per 8th note: density 4 ≈ 5.6% (a pluck every ~9 s at 60 BPM),
+  // density 16 ≈ 90%.
+  uint32_t chance = (uint32_t)density_ * density_ * 35u / 10u;   // per mille
+  if (pluckRng_.below(1000) >= chance) return;
+
+  for (auto &p : pluckPend_) {
+    if (p.used) continue;
+    // A little human looseness: up to 60 ms late
+    p = Pending{pickPluckNote(), (uint8_t)pluckRng_.range(38, 70),
+                nowMs + pluckRng_.below(60), true};
+    break;
+  }
+}
+
+// A chord note in the high register (C5..G6), preferably close to the last
+// pluck so the little melody moves in small steps.
+uint8_t Sequencer::pickPluckNote() {
+  const int LO = 72, HI = 91;
+  uint8_t near[24], any[24];
+  int nNear = 0, nAny = 0;
+  for (int n = LO; n <= HI; n++) {
+    bool inChord = false;
+    for (int i = 0; i < nCur_; i++) if (cur_[i] % 12 == n % 12) inChord = true;
+    if (!inChord) continue;
+    any[nAny++] = (uint8_t)n;
+    int dist = n > lastPluck_ ? n - lastPluck_ : lastPluck_ - n;
+    if (dist > 0 && dist <= 7) near[nNear++] = (uint8_t)n;
+  }
+  uint8_t pick;
+  if (nNear) pick = near[pluckRng_.below((uint32_t)nNear)];
+  else if (nAny) pick = any[pluckRng_.below((uint32_t)nAny)];
+  else pick = lastPluck_;
+  lastPluck_ = pick;
+  return pick;
 }
 
 int Sequencer::commonTones(int a, int b) {

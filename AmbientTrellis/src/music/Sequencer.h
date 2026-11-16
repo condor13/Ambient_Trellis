@@ -1,12 +1,15 @@
-// Sequencer - the generative chord player. Runs on core 0.
+// Sequencer - the generative player. Runs on core 0.
 //
-// Every few bars it picks the next chord from the scale, places its notes
-// close to the previous chord (so changes glide) and sends note events to the
-// audio engine. Notes shared by both chords simply keep sounding.
+// Chords: every few bars it picks the next chord from the scale, places its
+// notes close to the previous chord (so changes glide) and sends note events to
+// the audio engine. Notes shared by both chords simply keep sounding.
+//
+// Plucks: on every 8th note there is a small chance of a soft, high pluck,
+// always a note of the current chord (so it can never sound wrong).
 #pragma once
 #include <stdint.h>
-#include "AudioEngine.h"
-#include "Rng.h"
+#include "../audio/AudioEngine.h"
+#include "../util/Rng.h"
 
 class Sequencer {
  public:
@@ -23,21 +26,27 @@ class Sequencer {
   // Settings (menu values later)
   void setRoot(uint8_t pc)    { root_ = pc % 12; }
   void setScale(uint8_t s)    { scale_ = s % NUM_SCALES; }
-  void setBpm(uint8_t bpm)    { bpm_ = bpm; }
+  void setBpm(uint8_t bpm)    { bpm_ = bpm; applyTempo(); }
   void setBars(uint8_t bars)  { bars_ = bars; }
   void setDrift(uint8_t d)    { drift_ = d < 1 ? 1 : (d > 16 ? 16 : d); }
+  void setDensity(uint8_t d)  { density_ = d > 16 ? 16 : d; }   // plucks, 0 = none
 
   bool playing() const        { return playing_; }
   const char *chordName() const { return name_; }
   const char *scaleName() const;
   uint8_t root() const        { return root_; }
   uint32_t chordCount() const { return count_; }
+  uint32_t pluckCount() const { return pluckCount_; }
+  uint8_t lastPluckNote() const { return lastSent_; }
   int notes(uint8_t *out) const;         // current chord notes (MIDI)
 
   static const char *noteName(uint8_t pc);
 
  private:
+  void applyTempo();
   void playChord(int degree, uint32_t nowMs);
+  void tickPlucks(uint32_t nowMs);
+  uint8_t pickPluckNote();
   int  pickNextDegree();
   void buildChord(int degree, uint8_t *pcs, int &nPcs, bool &add9);
   void makeName(int degree, bool add9);
@@ -51,6 +60,7 @@ class Sequencer {
   uint8_t bpm_ = 60;
   uint8_t bars_ = 4;
   uint8_t drift_ = 6;
+  uint8_t density_ = 4;    // rare
 
   bool playing_ = false;
   int degree_ = 0;
@@ -65,6 +75,14 @@ class Sequencer {
   // note-ons waiting for their strum time
   struct Pending { uint8_t note, vel; uint32_t at; bool used; };
   Pending pend_[MAX_NOTES];
+
+  // Plucks (own random numbers, so they don't change the chord progression)
+  Rng pluckRng_;
+  uint32_t nextEighthMs_ = 0;
+  uint8_t lastPluck_ = 79;
+  uint8_t lastSent_ = 0;
+  uint32_t pluckCount_ = 0;
+  Pending pluckPend_[4];
 
   char name_[12] = "-";
 };
