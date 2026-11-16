@@ -1,12 +1,18 @@
 # Ambient Trellis
 
-A small battery-powered ambient machine: slow, evolving FM pads that swell in and
-glide from chord to chord. Chords only. You play it on a 4×4 NeoTrellis, and it
-can also drift through chord progressions by itself.
+A small battery-powered ambient box that plays itself. Slow FM pad chords swell
+in and glide from one to the next, while soft, high plucked notes fall like
+raindrops. Put it next to the bed and let it play you to sleep.
+
+The pads don't pick chords. Touching them plucks a note from the current chord,
+like touching water, so you can play along but never hit a wrong note. Without
+any interaction the box is a generative player.
 
 Written in C++ for the Arduino-Pico core (Raspberry Pi Pico / RP2040).
 
 ## Hardware
+
+A boxy enclosure with the 4×4 pads on top, and the SHIFT key and display on the side.
 
 | Part | Notes |
 |---|---|
@@ -15,7 +21,7 @@ Written in C++ for the Arduino-Pico core (Raspberry Pi Pico / RP2040).
 | Adafruit NeoTrellis 4×4 | silicone pads + NeoPixels (seesaw, I2C `0x2E`) |
 | 0.96" OLED, SSD1306 128×64 | I2C `0x3C` |
 | LIS3DH accelerometer | I2C `0x18` / `0x19`, used for tilt and shake |
-| Single key | used as SHIFT |
+| Single key | SHIFT |
 | Battery | |
 
 ### Pin map
@@ -46,63 +52,128 @@ The DAC wiring and jumpers were checked with a 440 Hz CircuitPython test tone.
 
 ## Sound
 
-- FM voices with two detuned voices per note, for width and shimmer.
+### Chord pads (bass and mid)
+
+- FM voices: one modulator and two detuned carriers per note (left and right),
+  for width and shimmer.
 - Long volume swells, with brightness (FM index) slowly rising as each chord blooms.
 - Very slow LFOs on brightness and detune, so a held chord never sits still.
+- Chords are built from the current scale (7th chords, sometimes with a 9th).
+  Notes that two chords share keep sounding, and the other notes are placed
+  as close as possible to the previous chord, so changes glide.
+- Chord changes follow the tempo: one chord every 1, 2, 4 or 8 bars (default 4)
+  at 53–68 BPM.
+
+### Plucks (high)
+
+- Karplus-Strong plucked strings: soft, gentle and high.
+- They play random notes from the current chord. **Density** sets how often.
+- Short delay on the plucks only (forward, ping-pong, reverse, reverse ping-pong).
+  It runs at half the sample rate to save memory, which also makes the repeats darker.
+
+### Master
+
 - Reverb with a long, dark tail.
-- Smooth chord changes: the next chord uses the inversion closest to the current
-  one and crossfades in.
+- Soft compressor and limiter, so many notes plus reverb never distort.
+  It's written as a separate, reusable file.
 
-## Controls
+## LEDs
 
-### Play mode
+### Play mode: a pond of notes
 
-| Row | Pads |
+The 16 pads are 16 places for notes, not fixed keys. Each sounding chord note
+takes a random free pad and glows in its note colour, fading in and out with
+the actual level of the sound. When the chord changes, the old notes fade out
+while the new ones fade in on free pads.
+
+| Note | Colour |
 |---|---|
-| 1–2 | The 7 chords of the scale (I ii iii IV V vi vii°) and a root + fifth drone |
-| 3 | Colour: plain / sus2 / add9 / 7th |
-| 4 | Voicing: close / open / low octave / high shimmer |
+| C | red |
+| D | green |
+| E | yellow |
+| F | orange |
+| G | blue |
+| A | turquoise |
+| B | pink |
 
-Pads glow and "breathe" with the level of the sound.
+Sharps and flats are a mix of the two neighbouring colours (C# between red and green).
 
-### SHIFT menu
+**Touching a pad** plucks a note from the current chord. These touch notes
+glow **blue**, like water.
 
-Hold SHIFT to open the menu while held, or double-tap it to keep it open.
+### Menu mode
 
-| Row | Pad 1 | Pad 2 | Pad 3 | Pad 4 |
+- Settings are **red**.
+- On a value page, every pad the parameter uses glows at 20% and the chosen
+  value is at full brightness. Four-option parameters light only 4 pads.
+- Exceptions:
+  - PLAY: green when playing, red when stopped
+  - ROOT: note colours plus indigo scale pads
+  - LITE previews its own brightness
+
+## SHIFT menu
+
+1. Press SHIFT (GP6) to open the menu. The grid shows the 16 parameters in red.
+2. Tap a parameter. The grid shows its value.
+3. Tap a pad 1–16 to set the value. The box goes back to the parameter list.
+4. Press SHIFT to exit. The menu also closes by itself after 10 seconds without a touch.
+
+SHIFT + PLAY toggles start/stop directly. Stop lets the chord and reverb fade
+out naturally, and Start fades the first chord in.
+
+| | 1 | 2 | 3 | 4 |
 |---|---|---|---|---|
-| 1 | LATCH on/off | DRIFT on/off | ROOT (next) | SCALE (next) |
-| 2 | Evolve: slow | · | · | fast |
-| 3 | Attack/Release: slow | · | · | fast |
-| 4 | LFO: slow | · | · | fast |
+| **Row 1** | PLAY | DENS | ROOT | DRFT |
+| **Row 2** | VERB | LFO | BPM | BARS ⁽⁴⁾ |
+| **Row 3** | ATK | REL | BRIT | VOL |
+| **Row 4** | DLY | DMOD ⁽⁴⁾ | LITE | SLEEP |
 
-Rows 2–4 are 4-level bar graphs.
+⁽⁴⁾ = four options, so only 4 pads are lit.
 
-- **Latch:** the last chord keeps playing after you let go.
-- **Drift:** the machine moves through chords on its own.
-- **Evolve:** how fast brightness rises inside a chord, and how often Drift changes chord.
+| # | Parameter | Values |
+|---|---|---|
+| 1 | PLAY | start / stop |
+| 2 | DENS | pluck density, sparse → dense |
+| 3 | ROOT | pads 1–12 = C … B; pads 13–16 = scale: Minor, Dorian, Major, Lydian |
+| 4 | DRFT | how far the progression wanders, 1 = stays home |
+| 5 | VERB | reverb, dry → wet |
+| 6 | LFO | very slow (~1 min) → faster (~2 s) |
+| 7 | BPM | 53 → 68 |
+| 8 | BARS | 1 / 2 / 4 / 8 bars per chord |
+| 9 | ATK | chord swell time |
+| 10 | REL | chord fade time |
+| 11 | BRIT | pad brightness (FM amount) |
+| 12 | VOL | master volume |
+| 13 | DLY | pluck delay amount, 1 = off |
+| 14 | DMOD | forward / ping-pong / reverse / reverse ping-pong |
+| 15 | LITE | LED and display brightness, for the bedroom at night |
+| 16 | SLEEP | 1–15 = fade out and stop after 10–150 minutes; 16 = never |
 
-### Motion (LIS3DH)
+Settings are saved to flash a few seconds after a change. The box starts the
+next day with the settings last used.
 
-Heavily smoothed, so movement bends the sound slowly:
+## Motion (LIS3DH)
 
-- Tilt forward/back: brightness
-- Tilt left/right: stereo width / reverb size
-- Gentle shake: shimmer, or a nudge to the next chord in Drift mode
-- Can be turned off from the menu
+General behaviour, not a menu setting:
+
+- **Tilt:** affects the randomness (how adventurous the progression and plucks are).
+- **Shake:** to be decided, for example "stirring the pond" with a cascade of plucks.
 
 ## Display
 
-The OLED shows the root, scale and current chord name, with a live
-oscilloscope underneath. When the menu is open it shows the parameter being
-changed instead.
+- **Play mode:** a pond with koi drawn in code. They swim faster or slower with
+  the LFO speed, and ripples spread when the chord changes. When something
+  changes, a short text such as `REVERB 12` appears over the pond and fades out.
+- **Menu:** a 4×4 grid of text labels that matches the pads. A value page
+  shows the full parameter name and a value bar.
 
 ## Software design
 
 - Arduino-Pico core (Earle Philhower), CPU overclocked to 250 MHz.
-- Core 1: audio only, 32 kHz, 16-bit, fixed-point (the RP2040 has no FPU).
-- Core 0: pads, LEDs, OLED, accelerometer, menu.
-- Settings (root, scale, speeds, last chord) saved to flash.
+- Core 1: audio only, 32 kHz, 16-bit stereo, fixed-point (the RP2040 has no FPU).
+- Core 0: chord sequencer, pads, LEDs, OLED, accelerometer, menu.
+- The audio engine is plain C++ with no Arduino dependencies, so it can also be
+  compiled on a computer to render a test WAV file.
 
 ### Libraries
 
@@ -113,11 +184,11 @@ changed instead.
 
 ## Roadmap
 
-1. One FM chord swelling in through the DAC
+1. FM chord pads with generative progression at a fixed tempo
 2. Reverb
-3. Pads with breathing LEDs
-4. OLED: root, scale, oscilloscope
+3. Plucks and pluck delay
+4. NeoTrellis: pond-of-notes LEDs, touch plucks
 5. SHIFT menu
-6. Drift mode (generative progressions)
+6. OLED: koi pond and menu
 7. Tilt and shake
-8. Saving settings to flash
+8. Settings saved to flash, sleep timer
