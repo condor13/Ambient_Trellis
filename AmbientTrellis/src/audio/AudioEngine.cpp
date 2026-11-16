@@ -51,17 +51,20 @@ void AUDIO_FAST(AudioEngine::render)(int16_t *out, int frames) {
   pads.render(padL_, padR_, frames);
   plucks.render(plkL_, plkR_, frames);
 
-  // Pluck tone filter: a gentle low-pass (~3 kHz) takes the edge off.
+  // Pluck high cut: two gentle low-pass filters in a row (~3 kHz each).
+  // Two in a row cut the highs twice as steeply, so the plucks sound soft
+  // and round without losing their body.
   const int32_t tone = (int32_t)params.pluckTone;
-  int32_t lpL = plkLpL_, lpR = plkLpR_;
+  int32_t aL = plkLp_[0], aR = plkLp_[1], bL = plkLp_[2], bR = plkLp_[3];
   for (int i = 0; i < frames; i++) {
-    lpL += ((plkL_[i] - lpL) * tone) >> 15;
-    lpR += ((plkR_[i] - lpR) * tone) >> 15;
-    plk_[2 * i]     = (lpL * vol) >> 8;
-    plk_[2 * i + 1] = (lpR * vol) >> 8;
+    aL += ((plkL_[i] - aL) * tone) >> 15;
+    aR += ((plkR_[i] - aR) * tone) >> 15;
+    bL += ((aL - bL) * tone) >> 15;
+    bR += ((aR - bR) * tone) >> 15;
+    plk_[2 * i]     = (bL * vol) >> 8;
+    plk_[2 * i + 1] = (bR * vol) >> 8;
   }
-  plkLpL_ = lpL;
-  plkLpR_ = lpR;
+  plkLp_[0] = aL; plkLp_[1] = aR; plkLp_[2] = bL; plkLp_[3] = bR;
 
   // 4. Pluck echoes
   delay_.process(plk_, echo_, frames);

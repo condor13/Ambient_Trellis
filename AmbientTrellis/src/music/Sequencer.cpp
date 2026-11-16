@@ -128,7 +128,7 @@ void Sequencer::tickPlucks(uint32_t nowMs) {
   for (auto &p : pluckPend_) {
     if (p.used) continue;
     // A little human looseness: up to 60 ms late
-    p = Pending{pickPluckNote(), (uint8_t)pluckRng_.range(30, 56),
+    p = Pending{pickPluckNote(), (uint8_t)pluckRng_.range(38, 70),
                 nowMs + pluckRng_.below(60), true};
     break;
   }

@@ -42,7 +42,7 @@ class AudioEngine {
 
   EventQueue<8, PluckSpec> pluckQueue_;   // core 0 -> core 1: pluck recipes
   Rng designRng_;                         // used on core 0 only (pluck pan)
-  int32_t plkLpL_ = 0, plkLpR_ = 0;       // pluck tone filter memory
+  int32_t plkLp_[4] = {};                 // pluck high-cut filter memory
   PluckDelay delay_;
   Reverb reverb_;
   SoftComp comp_;

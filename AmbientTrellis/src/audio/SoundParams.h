@@ -14,10 +14,10 @@ struct SoundParams {
   volatile uint32_t brightness  = 22000;   // max FM index (0..52000)
 
   // Plucks (Q8: 256 = 1.0)
-  volatile uint32_t pluckDry    = 55;      // plucks heard directly (soft)
-  volatile uint32_t pluckSend   = 210;     // plucks into the reverb (a lot)
+  volatile uint32_t pluckDry    = 70;      // plucks heard directly (soft)
+  volatile uint32_t pluckSend   = 256;     // plucks into the reverb (a lot)
   volatile uint32_t pluckDecayMs = 3200;   // how long a pluck rings
-  volatile uint32_t pluckTone   = 14000;   // pluck low-pass, Q15 (~3 kHz; lower = softer)
+  volatile uint32_t pluckTone   = 14000;   // pluck high cut, Q15 (2 x ~3 kHz; lower = darker)
 
   // Pluck delay
   volatile uint32_t delayMix    = 110;     // echoes level, 0 = off (Q8)
