@@ -182,6 +182,34 @@ General behaviour, not a menu setting:
 - Adafruit SSD1306 + Adafruit GFX
 - Adafruit LIS3DH
 
+## Building and uploading
+
+1. Install **Arduino IDE 2**.
+2. Under **File → Preferences → Additional boards manager URLs**, add
+   `https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json`.
+3. In **Boards Manager**, install **Raspberry Pi Pico/RP2040** (Earle F. Philhower).
+4. Open `AmbientTrellis/AmbientTrellis.ino`.
+5. Select **Tools → Board → Raspberry Pi Pico** and **Tools → CPU Speed → 250 MHz**.
+6. For the first upload, hold **BOOTSEL** while plugging in the Pico, then upload.
+   After that, the normal serial port works.
+
+### Testing the sound on a computer
+
+The audio engine and sequencer also compile on a PC, and render a WAV file:
+
+```
+g++ -O2 -std=c++17 -I AmbientTrellis tools/render_wav.cpp AmbientTrellis/AudioEngine.cpp AmbientTrellis/Sequencer.cpp -o render_wav
+./render_wav out.wav 120
+```
+
+## Current state: step 1
+
+- Generative FM pad chords at 60 BPM, a new chord every 4 bars (16 s),
+  in D Dorian. Starts playing at power-on.
+- **SHIFT** (GP6) jumps to the next chord, for testing.
+- Serial Monitor (115200 baud) shows each chord and the audio CPU load.
+- No reverb, plucks, pads, LEDs or display yet.
+
 ## Roadmap
 
 1. FM chord pads with generative progression at a fixed tempo
