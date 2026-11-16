@@ -188,6 +188,8 @@ AmbientTrellis/
   src/audio/                core 1: AudioEngine (mixer), PadSynth, PluckSynth,
                             PluckDelay, Reverb, SoftComp, SoundParams, Events
   src/music/                core 0: Sequencer (chords, voice leading, plucks)
+  src/ui/                   core 0: PondLeds (what the pads show; plain logic)
+  src/hw/                   core 0: TrellisPads (NeoTrellis driver)
 tools/render_wav.cpp        renders the same code to a WAV file on a computer
 ```
 
@@ -204,31 +206,36 @@ tools/render_wav.cpp        renders the same code to a WAV file on a computer
 2. Under **File → Preferences → Additional boards manager URLs**, add
    `https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json`.
 3. In **Boards Manager**, install **Raspberry Pi Pico/RP2040** (Earle F. Philhower).
-4. Open `AmbientTrellis/AmbientTrellis.ino`.
-5. Select **Tools → Board → Raspberry Pi Pico**, **Tools → CPU Speed → 250 MHz**
+4. In **Library Manager**, install **Adafruit seesaw Library** (with its dependencies).
+5. Open `AmbientTrellis/AmbientTrellis.ino`.
+6. Select **Tools → Board → Raspberry Pi Pico**, **Tools → CPU Speed → 250 MHz**
    and **Tools → USB Stack → Pico SDK**.
-6. For the first upload, hold **BOOTSEL** while plugging in the Pico, then upload.
+7. For the first upload, hold **BOOTSEL** while plugging in the Pico, then upload.
    After that, the normal serial port works.
 
 ### Testing the sound on a computer
 
-The audio engine and sequencer also compile on a PC, and render a WAV file:
+The audio engine, sequencer and LED logic also compile on a PC (everything
+except `src/hw/`), and render a WAV file:
 
 ```
-g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src/*/*.cpp -o render_wav
+g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src/{audio,music,util,ui}/*.cpp -o render_wav
 ./render_wav out.wav 120
 ```
 
-## Current state: step 3
+## Current state: step 4
 
 - Generative FM pad chords at 60 BPM, a new chord every 4 bars (16 s),
   in D Dorian. Starts playing at power-on.
 - Plate reverb (Dattorro style) with a ~8 s dark tail and slow modulation.
-- Rare, soft, high plucks (Karplus-Strong) from the current chord, about one
-  every 10-20 s, with a dotted-8th ping-pong delay and lots of reverb.
+- Rare, soft, high plucks (Karplus-Strong) from the current chord, with a
+  dotted-8th ping-pong delay and lots of reverb.
+- **NeoTrellis pond:** every sounding note glows in its note colour on a random
+  free pad, fading with the sound. A blue ripple at start-up.
+- **Touch a pad:** plucks a note of the current chord; the pad glows water blue.
 - **SHIFT** (GP6) jumps to the next chord, for testing.
-- Serial Monitor (115200 baud) shows each chord and the audio CPU load.
-- No pad input, LEDs or display yet.
+- Serial Monitor (115200 baud) shows chords, plucks and the audio CPU load.
+- No menu or display yet.
 
 ## Roadmap
 

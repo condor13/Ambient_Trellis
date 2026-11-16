@@ -21,8 +21,8 @@ void AudioEngine::handleEvent(uint32_t ev) {
   }
 }
 
-bool AudioEngine::sendPluck(uint8_t note, uint8_t vel) {
-  return pluckQueue_.push(PluckSynth::design(note, vel, params.pluckDecayMs, designRng_));
+bool AudioEngine::sendPluck(uint8_t note, uint8_t vel, uint8_t tag) {
+  return pluckQueue_.push(PluckSynth::design(note, vel, params.pluckDecayMs, tag, designRng_));
 }
 
 void AUDIO_FAST(AudioEngine::render)(int16_t *out, int frames) {

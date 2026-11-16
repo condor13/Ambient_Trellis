@@ -11,7 +11,7 @@ The Pico has two processor cores, and we give each one a clear job:
 
 | Core | Job | Files |
 |---|---|---|
-| **Core 0** | Decides *what* to play: chords, plucks (later also pads, LEDs, display, menu) | `src/music/Sequencer.*`, `AmbientTrellis.ino` |
+| **Core 0** | Decides *what* to play (chords, plucks), reads the pads, drives the LEDs (later: display, menu) | `src/music/`, `src/ui/`, `src/hw/`, `AmbientTrellis.ino` |
 | **Core 1** | Makes the *sound*: 32,000 stereo samples per second | `src/audio/*` |
 
 Core 0 sends small messages ("start note 62", "pluck this string") to core 1.
@@ -312,6 +312,44 @@ random, for a human feel.
 
 ---
 
+## 7b. The pond of notes on the pads (`src/ui/PondLeds.cpp`)
+
+The 16 pads are not fixed keys but 16 **places** in a pond. About 30 times a
+second, core 0 copies from the audio engine which notes are sounding and how
+loud they are (each synth voice publishes `voiceNote` and `voiceLevel`). Then:
+
+1. **Every pad is a "slot"** that can hold one sounding note.
+2. A note that starts sounding gets a **random free slot**.
+3. A slot's brightness **follows the loudness** of its note. So a chord note
+   swells in on the pads exactly as you hear it swell in.
+4. When a note stops (or its voice is reused for another note), its slot is
+   marked **gone**: it fades out where it is, and only once it's dark does the
+   slot become free again. So during a chord change you see the old chord fade
+   while the new notes appear elsewhere.
+
+**Brightness on a log scale.** Our ears and eyes both work in ratios: twice as
+loud doesn't feel twice as strong. So the level is mapped with a logarithm:
+every doubling of loudness adds the same step of light. Without that, a pluck's
+glow vanished after its first loud burst, while you could still hear it for
+two more seconds. After that there's a **gamma curve** (brightness²), because
+LEDs look far too bright at low values otherwise.
+
+**Smoothing:** displayed brightness rises quickly and falls slowly, so nothing
+flickers. Touch glows fall even slower, like a ripple settling.
+
+**Touch plucks** carry a **tag**: the number of the pad that was touched. It
+travels with the pluck recipe to core 1 and comes back with the voice's level,
+so the LED code knows exactly which pad should glow water blue.
+
+**Colours:** C red, D green, E yellow, F orange, G blue, A turquoise, B pink.
+A sharp is the average of its two neighbours (C# is between red and green).
+
+The hardware side (`src/hw/TrellisPads.cpp`) is kept separate and thin: it
+only reads key presses and sends 16 colours over I2C. So the pond logic can be
+tested on a computer.
+
+---
+
 ## 8. The pluck delay: ping-pong echoes (`PluckDelay.cpp`)
 
 Two delay lines, left and right, connected in a ring:
@@ -458,7 +496,11 @@ AmbientTrellis/
     Reverb.*                Dattorro plate reverb
     SoftComp.h              compressor + soft clipper (reusable)
   src/music/                (core 0)
-    Sequencer.*             chords, voice leading, plucks
+    Sequencer.*             chords, voice leading, plucks, touch
+  src/ui/                   (core 0)
+    PondLeds.*              the pond of notes on the pads
+  src/hw/                   (core 0)
+    TrellisPads.*           NeoTrellis keys and LEDs over I2C
 tools/
   render_wav.cpp            runs the same code on a computer and writes a WAV
 ```

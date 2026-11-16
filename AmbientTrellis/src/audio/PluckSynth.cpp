@@ -13,7 +13,7 @@ static constexpr int EXTRA = 4;
 
 // ------------------------------------------------------------ core 0: design
 
-PluckSpec PluckSynth::design(uint8_t note, uint8_t vel, uint32_t decayMs, Rng &rng) {
+PluckSpec PluckSynth::design(uint8_t note, uint8_t vel, uint32_t decayMs, uint8_t tag, Rng &rng) {
   PluckSpec p;
   const float fs = (float)cfg::SAMPLE_RATE;
   float freq = 440.0f * powf(2.0f, ((float)note - 69.0f) / 12.0f);
@@ -61,6 +61,7 @@ PluckSpec PluckSynth::design(uint8_t note, uint8_t vel, uint32_t decayMs, Rng &r
   p.amp = vel * 150;                                   // vel 64 -> 9600
   p.toneStep = (uint32_t)(4294967296.0f / period);
   p.note = note;
+  p.tag = tag;
   return p;
 }
 
@@ -115,6 +116,7 @@ void AUDIO_FAST(PluckSynth::start)(const PluckSpec &p) {
   v.age = 0;
   v.quiet = 0;
   v.note = p.note;
+  v.tag = p.tag;
   v.active = true;
 }
 
@@ -174,6 +176,7 @@ void AUDIO_FAST(PluckSynth::render)(int32_t *L, int32_t *R, int frames) {
     v.env = env;
     v.age++;
     voiceNote[k] = v.note;
+    voiceTag[k] = v.tag;
     voiceLevel[k] = (uint16_t)(peak * 2 > 65535 ? 65535 : peak * 2);
 
     // Silent for 50 ms in a row: the string is done.

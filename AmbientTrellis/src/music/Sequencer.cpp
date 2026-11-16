@@ -134,6 +134,14 @@ void Sequencer::tickPlucks(uint32_t nowMs) {
   }
 }
 
+void Sequencer::touch(uint8_t pad) {
+  uint8_t note = pickPluckNote();
+  if (eng_->sendPluck(note, (uint8_t)pluckRng_.range(58, 78), (uint8_t)(pad + 1))) {
+    lastSent_ = note;
+    pluckCount_++;
+  }
+}
+
 // A chord note in the high register (C5..G6), preferably close to the last
 // pluck so the little melody moves in small steps.
 uint8_t Sequencer::pickPluckNote() {

@@ -29,12 +29,13 @@ class AudioEngine {
 
   // Core 0: start a pluck. The slow float math happens here, on core 0;
   // core 1 only receives the finished recipe.
-  bool sendPluck(uint8_t note, uint8_t vel);
+  // tag: 0 = generative, 1..16 = started by touching pad (tag-1).
+  bool sendPluck(uint8_t note, uint8_t vel, uint8_t tag = 0);
 
   EventQueue<64> events;   // core 0 -> core 1: pad notes
   SoundParams params;      // core 0 writes, core 1 reads
 
-  PadSynth pads;           // public so core 0 can read the LED levels
+  PadSynth pads;           // public so core 0 can read the levels for the LEDs
   PluckSynth plucks;
 
  private:

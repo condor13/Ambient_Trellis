@@ -22,6 +22,7 @@ struct PluckSpec {
   int32_t  amp;        // pluck strength
   uint32_t toneStep;   // phase step of one period (for the sine-shaped pluck)
   uint8_t  note;
+  uint8_t  tag;        // 0 = generative, 1..16 = started by touching pad (tag-1)
 };
 
 class PluckSynth {
@@ -29,7 +30,7 @@ class PluckSynth {
   static constexpr int VOICES = 4;
 
   // Core 0. note = MIDI note (60..100), vel = 1..127.
-  static PluckSpec design(uint8_t note, uint8_t vel, uint32_t decayMs, Rng &rng);
+  static PluckSpec design(uint8_t note, uint8_t vel, uint32_t decayMs, uint8_t tag, Rng &rng);
 
   // Core 1.
   void init(uint32_t seed);
@@ -39,6 +40,7 @@ class PluckSynth {
   // For the LEDs: which note each string plays and how loud it is (0 = silent).
   volatile uint8_t  voiceNote[VOICES] = {};
   volatile uint16_t voiceLevel[VOICES] = {};
+  volatile uint8_t  voiceTag[VOICES] = {};    // see PluckSpec::tag
 
  private:
   static constexpr int LEN = 128;    // delay line length (enough down to middle C)
@@ -53,6 +55,7 @@ class PluckSynth {
     uint32_t age;          // blocks since the pluck
     int32_t  quiet;        // blocks in a row it was almost silent
     uint8_t  note;
+    uint8_t  tag;
     bool     active;
   };
 

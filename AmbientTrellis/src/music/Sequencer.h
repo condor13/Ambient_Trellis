@@ -6,6 +6,7 @@
 //
 // Plucks: on every 8th note there is a small chance of a soft, high pluck,
 // always a note of the current chord (so it can never sound wrong).
+// Touching a pad plucks one too, right away.
 #pragma once
 #include <stdint.h>
 #include "../audio/AudioEngine.h"
@@ -22,6 +23,9 @@ class Sequencer {
   void start(uint32_t nowMs);
   void stop();
   void nextChordNow(uint32_t nowMs);     // skip ahead (test helper)
+
+  // A pad was touched: pluck a note of the current chord ("touching water").
+  void touch(uint8_t pad);
 
   // Settings (menu values later)
   void setRoot(uint8_t pc)    { root_ = pc % 12; }

@@ -1,7 +1,7 @@
 // Host test: runs the same sequencer + audio engine as the Pico and writes a
 // WAV file, so the sound can be checked without hardware.
 //
-//   g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src/*/*.cpp -o render_wav
+//   g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src/{audio,music,util,ui}/*.cpp -o render_wav
 //   ./render_wav out.wav [seconds] [reverbWet 0-256] [stop-at-second, -1 = never] [pluck density 0-16]
 #include <stdio.h>
 #include <stdlib.h>
