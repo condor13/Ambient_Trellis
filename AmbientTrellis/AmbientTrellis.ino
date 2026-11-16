@@ -11,6 +11,9 @@
 //   SHIFT (GP6) = jump to the next chord now.
 //   Serial Monitor (115200) shows the chords and the audio CPU load.
 
+#ifdef USE_TINYUSB
+#include <Adafruit_TinyUSB.h>   // needed when Tools -> USB Stack is "Adafruit TinyUSB"
+#endif
 #include <I2S.h>
 #include "Config.h"
 #include "AudioEngine.h"
