@@ -110,7 +110,7 @@ void Sequencer::tickPlucks(uint32_t nowMs) {
   // Plucks that are due
   for (auto &p : pluckPend_) {
     if (p.used && (int32_t)(nowMs - p.at) >= 0) {
-      eng_->events.push(packEvent(EV_PLUCK, p.note, p.vel));
+      eng_->sendPluck(p.note, p.vel);
       p.used = false;
       lastSent_ = p.note;
       pluckCount_++;
@@ -128,7 +128,7 @@ void Sequencer::tickPlucks(uint32_t nowMs) {
   for (auto &p : pluckPend_) {
     if (p.used) continue;
     // A little human looseness: up to 60 ms late
-    p = Pending{pickPluckNote(), (uint8_t)pluckRng_.range(38, 70),
+    p = Pending{pickPluckNote(), (uint8_t)pluckRng_.range(30, 56),
                 nowMs + pluckRng_.below(60), true};
     break;
   }

@@ -4,19 +4,15 @@
 #include "PadSynth.h"
 #include <math.h>
 #include "../util/FastCode.h"
+#include "../util/SineTable.h"
 
-// 2048-point sine table, built once in RAM. Index = phase >> 21.
-static int16_t sineTab[2048];
-
-static ALWAYS_INLINE int32_t sine(uint32_t phase) { return sineTab[phase >> 21]; }
+static ALWAYS_INLINE int32_t sine(uint32_t phase) { return sineLookup(phase); }
 
 static constexpr int32_t ENV_MAX = (1 << 24) - 256;   // envelope full scale (Q24); >>8 stays <= 65535
 static constexpr int32_t IDX_MIN = 2500;              // FM index at the very start (almost a sine)
 
 void PadSynth::init(uint32_t seed) {
-  for (int i = 0; i < 2048; i++) {
-    sineTab[i] = (int16_t)lrintf(32767.0f * sinf(6.2831853f * (float)i / 2048.0f));
-  }
+  sineTableInit();
   rng_.seed(seed);
   for (auto &v : v_) {
     v = Voice{};

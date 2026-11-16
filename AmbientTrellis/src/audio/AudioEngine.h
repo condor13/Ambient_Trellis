@@ -24,10 +24,14 @@ class AudioEngine {
  public:
   void init(uint32_t seed);
 
-  // Render `frames` (must be cfg::BLOCK) of interleaved stereo audio.
+  // Core 1: render `frames` (must be cfg::BLOCK) of interleaved stereo audio.
   void render(int16_t *out, int frames);
 
-  EventQueue<64> events;   // core 0 -> core 1
+  // Core 0: start a pluck. The slow float math happens here, on core 0;
+  // core 1 only receives the finished recipe.
+  bool sendPluck(uint8_t note, uint8_t vel);
+
+  EventQueue<64> events;   // core 0 -> core 1: pad notes
   SoundParams params;      // core 0 writes, core 1 reads
 
   PadSynth pads;           // public so core 0 can read the LED levels
@@ -36,6 +40,9 @@ class AudioEngine {
  private:
   void handleEvent(uint32_t ev);
 
+  EventQueue<8, PluckSpec> pluckQueue_;   // core 0 -> core 1: pluck recipes
+  Rng designRng_;                         // used on core 0 only (pluck pan)
+  int32_t plkLpL_ = 0, plkLpR_ = 0;       // pluck tone filter memory
   PluckDelay delay_;
   Reverb reverb_;
   SoftComp comp_;

@@ -14,9 +14,12 @@ The Pico has two processor cores, and we give each one a clear job:
 | **Core 0** | Decides *what* to play: chords, plucks (later also pads, LEDs, display, menu) | `src/music/Sequencer.*`, `AmbientTrellis.ino` |
 | **Core 1** | Makes the *sound*: 32,000 stereo samples per second | `src/audio/*` |
 
-Core 0 sends small messages ("start note 62", "pluck note 79") to core 1.
+Core 0 sends small messages ("start note 62", "pluck this string") to core 1.
 Core 1 never waits for core 0, so the audio never stutters, even if core 0 is
 busy drawing the display.
+
+**Rule of thumb:** anything slow (float math, decisions) happens on core 0.
+Core 1 only does fast integer work that repeats every sample.
 
 ### Blocks
 
@@ -252,9 +255,21 @@ imitate that with a **delay line exactly one period long**:
 
 ### The details that make it sound good
 
-**The pluck itself:** mostly one smooth sine cycle (round, soft), plus a little
-filtered noise (the "string" character). Pure noise sounds twangy and scratchy;
-this sounds like a soft harp or kalimba.
+**The pluck itself:** mostly one smooth sine cycle (90%, round and soft), plus
+a little filtered noise (10%, the "string" character). Pure noise sounds
+twangy and scratchy; this sounds like a soft harp or kalimba. On top of that:
+- every string fades in over 8 ms, so there's no hard edge at the start;
+- all plucks pass through a gentle low-pass (about 3 kHz, `pluckTone`).
+
+**Starting a string is split across the cores.** Working out a string's
+recipe needs `pow`, `cos` and `sqrt`, which are slow without a floating-point
+unit. At first this ran on core 1 and every new pluck made one audio block
+take longer than 1 ms (the "100%" in the load log). Now:
+- `PluckSynth::design()` runs on **core 0** and computes the recipe
+  (`PluckSpec`): loop length, allpass coefficient, low-pass, loss, pan.
+- It travels to core 1 through its own small queue.
+- `PluckSynth::start()` on **core 1** only fills the string, with integer math
+  and the shared sine table (`src/util/SineTable.*`).
 
 **Exact tuning:** a period is rarely a whole number of samples. At 32 kHz, G5 is
 40.8 samples. A delay can only be whole samples, so the fraction is made with
@@ -432,6 +447,7 @@ AmbientTrellis/
     FastCode.h              RAM placement and inlining macros
     Rng.h                   fast random numbers (xorshift)
     EventQueue.h            core 0 -> core 1 message queue
+    SineTable.*             one sine cycle, shared by the synths
   src/audio/                (core 1)
     AudioEngine.*           receives events, mixes everything
     Events.h                message types

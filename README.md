@@ -184,7 +184,7 @@ numbers, FM, the chord engine, Karplus-Strong strings, the reverb and more.
 AmbientTrellis/
   AmbientTrellis.ino        setup and loop for both cores
   src/Config.h              pins, sample rate, block size
-  src/util/                 random numbers, cross-core queue, speed macros
+  src/util/                 random numbers, cross-core queue, sine table, speed macros
   src/audio/                core 1: AudioEngine (mixer), PadSynth, PluckSynth,
                             PluckDelay, Reverb, SoftComp, SoundParams, Events
   src/music/                core 0: Sequencer (chords, voice leading, plucks)

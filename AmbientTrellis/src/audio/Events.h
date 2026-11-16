@@ -7,8 +7,8 @@ enum : uint8_t {
   EV_NOTE_ON  = 1,   // pad note starts swelling in
   EV_NOTE_OFF = 2,   // pad note starts fading out
   EV_ALL_OFF  = 3,   // all pad notes fade out
-  EV_PLUCK    = 4,   // one plucked string note
 };
+// (Plucks have their own queue: see AudioEngine::sendPluck.)
 
 inline uint32_t packEvent(uint8_t cmd, uint8_t note = 0, uint8_t vel = 0) {
   return ((uint32_t)cmd << 16) | ((uint32_t)note << 8) | vel;
