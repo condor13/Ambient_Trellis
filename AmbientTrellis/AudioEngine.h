@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "Config.h"
 #include "EventQueue.h"
+#include "Reverb.h"
 #include "Rng.h"
 #include "SoftComp.h"
 
@@ -18,11 +19,13 @@ inline uint32_t packEvent(uint8_t cmd, uint8_t note = 0, uint8_t vel = 0) {
 // Sound settings. Written by core 0, read by core 1 once per block.
 struct PadParams {
   volatile uint32_t attackMs   = 7000;    // chord swell time
-  volatile uint32_t releaseMs  = 9000;    // chord fade time
+  volatile uint32_t releaseMs  = 7500;    // chord fade time
   volatile uint32_t evolveMs   = 14000;   // how long brightness keeps rising
   volatile uint32_t lfoMs      = 24000;   // period of the slow LFO
   volatile uint32_t brightness = 22000;   // max FM index (0..52000)
-  volatile uint32_t volume     = 200;     // master volume, 0..256
+  volatile uint32_t volume     = 225;     // master volume, 0..256
+  volatile uint32_t reverbWet  = 150;     // 0 = dry .. 256 = fully wet
+  volatile uint32_t reverbDecay = 27500;  // tail length, Q15 (max ~30000)
 };
 
 class AudioEngine {
@@ -65,6 +68,7 @@ class AudioEngine {
   Voice v_[cfg::NUM_VOICES];
   Rng rng_;
   SoftComp comp_;
+  Reverb reverb_;
   uint32_t lfoPh_ = 0, lfo2Ph_ = 0;
   int32_t mixL_[cfg::BLOCK];
   int32_t mixR_[cfg::BLOCK];

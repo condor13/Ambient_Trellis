@@ -2,8 +2,8 @@
 // WAV file, so the sound can be checked without hardware.
 //
 //   g++ -O2 -std=c++17 -I AmbientTrellis tools/render_wav.cpp
-//     AmbientTrellis/AudioEngine.cpp AmbientTrellis/Sequencer.cpp -o render_wav
-//   ./render_wav out.wav 120        (seconds)
+//     AmbientTrellis/AudioEngine.cpp AmbientTrellis/Sequencer.cpp AmbientTrellis/Reverb.cpp -o render_wav
+//   ./render_wav out.wav 120 [reverbWet 0-256] [stop-at-second]
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,11 +17,13 @@ static void put16(FILE *f, uint16_t v) { fwrite(&v, 2, 1, f); }
 int main(int argc, char **argv) {
   const char *path = argc > 1 ? argv[1] : "out.wav";
   int seconds = argc > 2 ? atoi(argv[2]) : 120;
+  int stopAt = argc > 4 ? atoi(argv[4]) : -1;
 
   static AudioEngine engine;
   static Sequencer seq;
   engine.init(12345);
   seq.begin(&engine, 777);
+  if (argc > 3) engine.params.reverbWet = (uint32_t)atoi(argv[3]);
   seq.start(0);
 
   const uint32_t blocks = (uint32_t)seconds * cfg::SAMPLE_RATE / cfg::BLOCK;
@@ -35,6 +37,7 @@ int main(int argc, char **argv) {
   uint32_t samplesDone = 0;
   for (uint32_t b = 0; b < blocks; b++) {
     uint32_t nowMs = (uint32_t)((uint64_t)samplesDone * 1000 / cfg::SAMPLE_RATE);
+    if (stopAt >= 0 && nowMs == (uint32_t)stopAt * 1000) seq.stop();
     seq.tick(nowMs);
     if (seq.chordCount() != lastCount) {
       lastCount = seq.chordCount();

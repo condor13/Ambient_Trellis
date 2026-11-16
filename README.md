@@ -198,17 +198,19 @@ General behaviour, not a menu setting:
 The audio engine and sequencer also compile on a PC, and render a WAV file:
 
 ```
-g++ -O2 -std=c++17 -I AmbientTrellis tools/render_wav.cpp AmbientTrellis/AudioEngine.cpp AmbientTrellis/Sequencer.cpp -o render_wav
+g++ -O2 -std=c++17 -I AmbientTrellis tools/render_wav.cpp AmbientTrellis/AudioEngine.cpp AmbientTrellis/Sequencer.cpp AmbientTrellis/Reverb.cpp -o render_wav
 ./render_wav out.wav 120
 ```
 
-## Current state: step 1
+## Current state: step 2
 
 - Generative FM pad chords at 60 BPM, a new chord every 4 bars (16 s),
   in D Dorian. Starts playing at power-on.
+- Plate reverb (Dattorro style) with a ~8 s dark tail and slow modulation.
+  It uses about 50 KB of RAM and a few percent of core 1.
 - **SHIFT** (GP6) jumps to the next chord, for testing.
 - Serial Monitor (115200 baud) shows each chord and the audio CPU load.
-- No reverb, plucks, pads, LEDs or display yet.
+- No plucks, pads, LEDs or display yet.
 
 ## Roadmap
 

@@ -223,14 +223,14 @@ void Sequencer::playChord(int degree, uint32_t nowMs) {
     if (!keep) eng_->events.push(packEvent(EV_NOTE_OFF, cur_[i]));
   }
 
-  // Start new notes: bass first, the others strummed in slowly.
+  // Start new notes after a short breath: bass first, the others strummed in slowly.
   int slot = 0;
   for (int j = 0; j < nNext; j++) {
     bool held = false;
     for (int i = 0; i < nCur_; i++) if (cur_[i] == next[j]) held = true;
     if (held) continue;
     uint8_t vel = (j == 0) ? 92 : (uint8_t)rng_.range(62, 82);
-    uint32_t delay = (j == 0) ? 0 : (uint32_t)rng_.range(250, 2600);
+    uint32_t delay = (j == 0) ? 1100 : (uint32_t)rng_.range(1400, 3400);
     pend_[slot++] = Pending{next[j], vel, nowMs + delay, true};
   }
 

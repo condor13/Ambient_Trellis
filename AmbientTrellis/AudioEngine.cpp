@@ -1,11 +1,7 @@
 #include "AudioEngine.h"
 #include <math.h>
 
-// Keep the hot audio code in RAM on the Pico (flash is slower).
-// (Arduino.h on the Pico core already defines __not_in_flash_func.)
-#if defined(ARDUINO)
-#include <Arduino.h>
-#endif
+#include "FastCode.h"
 #if defined(__not_in_flash_func)
 #define AUDIO_FAST(f) __not_in_flash_func(f)
 #else
@@ -26,6 +22,7 @@ void AudioEngine::init(uint32_t seed) {
   }
   rng_.seed(seed);
   comp_.setup(16000, 3, 9);
+  reverb_.init();
   for (auto &v : v_) {
     v = Voice{};
     v.state = IDLE;
@@ -214,11 +211,15 @@ void AUDIO_FAST(AudioEngine::render)(int16_t *out, int frames) {
     v.amp = a; v.idx = idx;
   }
 
-  // Master: headroom for ~4 full voices, then volume, then compressor.
+  // Master: headroom for ~4 full voices, then volume, reverb, compressor.
   int32_t vol = (int32_t)params.volume;
   for (int i = 0; i < frames; i++) {
     mix_[2 * i]     = ((mixL_[i] >> 2) * vol) >> 8;
     mix_[2 * i + 1] = ((mixR_[i] >> 2) * vol) >> 8;
   }
+  int32_t wet = (int32_t)params.reverbWet;
+  if (wet > 256) wet = 256;
+  reverb_.decay = (int32_t)params.reverbDecay;
+  reverb_.process(mix_, frames, wet, 256 - wet / 2);
   comp_.process(mix_, out, frames);
 }
