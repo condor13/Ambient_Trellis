@@ -5,6 +5,7 @@
 // Uses about 50 KB of RAM for its delay lines.
 #pragma once
 #include <stdint.h>
+#include "FastCode.h"
 
 class Reverb {
  public:
@@ -24,12 +25,12 @@ class Reverb {
     int16_t *buf;
     int32_t len, pos;
     // Sample written d writes ago (1 <= d <= len)
-    inline int32_t read(int32_t d) const {
+    ALWAYS_INLINE int32_t read(int32_t d) const {
       int32_t i = pos - d;
       if (i < 0) i += len;
       return buf[i];
     }
-    inline void write(int32_t x) {
+    ALWAYS_INLINE void write(int32_t x) {
       if (x > 32767) x = 32767;
       if (x < -32768) x = -32768;
       buf[pos] = (int16_t)x;

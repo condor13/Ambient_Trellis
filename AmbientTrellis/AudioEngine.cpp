@@ -1,3 +1,6 @@
+// Optimize this file for speed (the Arduino-Pico default is size).
+#pragma GCC optimize("O2")
+
 #include "AudioEngine.h"
 #include <math.h>
 
@@ -11,7 +14,7 @@
 // 2048-point sine table, built once in RAM. Index = phase >> 21.
 static int16_t sineTab[2048];
 
-static inline int32_t sine(uint32_t phase) { return sineTab[phase >> 21]; }
+static ALWAYS_INLINE int32_t sine(uint32_t phase) { return sineTab[phase >> 21]; }
 
 static constexpr int32_t ENV_MAX = (1 << 24) - 256;   // lvl full scale (Q24); >>8 stays <= 65535
 static constexpr int32_t IDX_MIN = 2500;      // FM index at the very start (almost a sine)

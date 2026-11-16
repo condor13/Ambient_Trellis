@@ -1,3 +1,6 @@
+// Optimize this file for speed (the Arduino-Pico default is size).
+#pragma GCC optimize("O2")
+
 #include "Reverb.h"
 #include "FastCode.h"
 
@@ -23,7 +26,7 @@ constexpr int32_t DEC_DIFF2 = 16384;    // 0.50
 constexpr int32_t OUT_GAIN = 2;
 
 // Smooth-ish LFO shape (parabolic sine), ±32767
-int32_t lfoShape(uint32_t ph) {
+static int32_t lfoShape(uint32_t ph) {
   int32_t p = (int32_t)(ph >> 16);
   int32_t half = p & 0x7FFF;
   int32_t y = (half * (32768 - half)) >> 13;
@@ -55,14 +58,14 @@ void Reverb::init() {
   bw_ = lDamp_ = rDamp_ = lFeed_ = rFeed_ = 0;
 }
 
-inline int32_t Reverb::allpass(Line &l, int32_t x, int32_t g) {
+ALWAYS_INLINE int32_t Reverb::allpass(Line &l, int32_t x, int32_t g) {
   int32_t d = l.read(l.len);
   int32_t v = x - ((g * d) >> 15);
   l.write(v);
   return d + ((g * v) >> 15);
 }
 
-inline int32_t Reverb::allpassMod(Line &l, int32_t x, int32_t g, int32_t delayQ16) {
+ALWAYS_INLINE int32_t Reverb::allpassMod(Line &l, int32_t x, int32_t g, int32_t delayQ16) {
   int32_t di = delayQ16 >> 16;
   int32_t f = (delayQ16 & 0xFFFF) >> 1;              // Q15 fraction
   int32_t a = l.read(di);
