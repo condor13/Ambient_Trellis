@@ -23,6 +23,7 @@ class Sequencer {
   void start(uint32_t nowMs);
   void stop();
   void nextChordNow(uint32_t nowMs);     // skip ahead (test helper)
+  void goHome(uint32_t nowMs);           // play the home chord now (after a key change)
 
   // A pad was touched: pluck a note of the current chord ("touching water").
   void touch(uint8_t pad);

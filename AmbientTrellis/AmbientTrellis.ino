@@ -1,6 +1,7 @@
-// Ambient Trellis - step 4: generative pads, reverb, plucks, NeoTrellis pond.
+// Ambient Trellis - step 5: generative pads, reverb, plucks, NeoTrellis pond,
+// SHIFT menu.
 //
-// Core 0: sequencer, pads and LEDs (display and menu later)
+// Core 0: sequencer, pads, LEDs, menu (display later)
 // Core 1: audio engine -> PCM5102A over I2S
 //
 // Board: Raspberry Pi Pico (Arduino-Pico core by Earle Philhower)
@@ -13,15 +14,16 @@
 //   src/util/      small helpers (random numbers, cross-core queue, sine table, RAM placement)
 //   src/audio/     everything on core 1: synths, effects, mixer
 //   src/music/     the generative sequencer (core 0)
-//   src/ui/        what the LEDs show (plain logic, core 0)
+//   src/app/       the 16 settings and what they mean (core 0)
+//   src/ui/        what the LEDs show: pond and menu (plain logic, core 0)
 //   src/hw/        hardware drivers: NeoTrellis (core 0)
 // docs/HOW_IT_WORKS.md explains the math.
 //
-// Controls for now:
+// Controls:
 //   The box starts playing by itself.
 //   Touch a pad = pluck a note of the current chord (glows blue).
-//   SHIFT (GP6) = jump to the next chord (until the menu exists).
-//   Serial Monitor (115200) shows chords, plucks and the audio CPU load.
+//   SHIFT (GP6) = open / close the menu (see README).
+//   Serial Monitor (115200) shows chords, plucks, menu changes and the audio load.
 
 #ifdef USE_TINYUSB
 #include <Adafruit_TinyUSB.h>   // needed when Tools -> USB Stack is "Adafruit TinyUSB"
@@ -29,16 +31,22 @@
 #include <I2S.h>
 #include <Wire.h>
 #include "src/Config.h"
+#include "src/app/Settings.h"
 #include "src/audio/AudioEngine.h"
 #include "src/hw/TrellisPads.h"
 #include "src/music/Sequencer.h"
+#include "src/ui/Menu.h"
 #include "src/ui/PondLeds.h"
 
 AudioEngine engine;
 Sequencer seq;
 TrellisPads pads;
 PondLeds pond;
+Menu menu;
+Settings settings;
 I2S i2s(OUTPUT);
+
+uint32_t sleepAtMs = 0;             // 0 = no sleep timer running
 
 volatile bool engineReady = false;
 volatile uint32_t audioUsMax = 0;   // longest block render time (µs)
@@ -61,21 +69,58 @@ void setup() {
   Wire1.setClock(400000);           // the seesaw library may reset it
 
   seq.begin(&engine, rp2040.hwrand32());
-  seq.start(millis());
   pond.begin(rp2040.hwrand32(), millis());
+  settings.setDefaults();
+  settings.applyAll(engine, seq, pond, millis());
 }
 
-// Pads: read touches, each one plucks a note.
+// Start the sleep timer (when SLEEP is set, or when playing starts).
+static void armSleep(uint32_t now) {
+  uint32_t min = settings.sleepMinutes();
+  // (| 1 so a running timer is never exactly 0, which means "off")
+  sleepAtMs = min ? ((now + min * 60000u) | 1u) : 0;
+}
+
+// Text that the display will show over the pond in step 6. For now: Serial.
+static void showText(const char *title, const char *value) {
+  if (value) Serial.printf("[%s %s]\n", title, value);
+  else Serial.printf("[%s]\n", title);
+}
+
+static void showParam(Param p) {
+  char buf[24];
+  settings.valueText(p, buf, sizeof(buf));
+  showText(Settings::longName(p), buf);
+}
+
+// A menu press or SHIFT did something: apply it and show it.
+static void handleMenu(const Menu::Result &r, uint32_t now) {
+  if (r.changed) {
+    settings.apply(r.param, engine, seq, pond, now);
+    if (r.param == P_SLEEP || (r.param == P_PLAY && settings.playing)) armSleep(now);
+    showParam(r.param);
+  } else if (r.opened) {
+    if (menu.onValuePage()) showParam(menu.page());
+    else showText("MENU", nullptr);
+  }
+  if (r.closed) showText("MENU CLOSED", nullptr);
+}
+
+// Pads: in the menu they choose settings, otherwise each touch plucks a note.
 static void taskKeys(uint32_t now) {
   static uint32_t last = 0;
   if (now - last < 20) return;
   last = now;
   pads.poll();
   uint8_t pad;
-  while (pads.nextPress(pad)) seq.touch(pad);
+  while (pads.nextPress(pad)) {
+    if (menu.isOpen()) handleMenu(menu.press(pad, settings, now), now);
+    else seq.touch(pad);
+  }
+  handleMenu(menu.tick(now), now);   // 10 s timeout
 }
 
-// LEDs: copy what is sounding from the engine, let the pond draw it.
+// LEDs: the pond keeps running underneath, the menu is drawn on top when open.
 static void taskLeds(uint32_t now) {
   static uint32_t last = 0;
   if (now - last < 33) return;      // ~30 frames per second
@@ -93,10 +138,11 @@ static void taskLeds(uint32_t now) {
   }
   Rgb colours[PondLeds::PADS];
   pond.update(in, now, colours);
+  if (menu.isOpen()) menu.draw(settings, colours);
   pads.show(colours);
 }
 
-// SHIFT: next chord (temporary, until the menu exists)
+// SHIFT key: open / close the menu.
 static void taskShift(uint32_t now) {
   static bool lastKey = HIGH;
   static uint32_t keyMs = 0;
@@ -104,7 +150,17 @@ static void taskShift(uint32_t now) {
   if (key != lastKey && now - keyMs > 30) {
     keyMs = now;
     lastKey = key;
-    if (key == LOW) seq.nextChordNow(now);
+    if (key == LOW) handleMenu(menu.shift(now), now);
+  }
+}
+
+// Sleep timer: fade out and stop.
+static void taskSleep(uint32_t now) {
+  if (sleepAtMs && settings.playing && (int32_t)(now - sleepAtMs) >= 0) {
+    sleepAtMs = 0;
+    settings.playing = false;
+    settings.apply(P_PLAY, engine, seq, pond, now);
+    showText("SLEEP", "GOOD NIGHT");
   }
 }
 
@@ -142,9 +198,10 @@ static void taskSerial(uint32_t now) {
 void loop() {
   uint32_t now = millis();
   seq.tick(now);
+  taskShift(now);
   taskKeys(now);
   taskLeds(now);
-  taskShift(now);
+  taskSleep(now);
   taskSerial(now);
 }
 

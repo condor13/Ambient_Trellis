@@ -5,20 +5,17 @@
 // of the sound. When a chord changes, the old notes fade out where they are and
 // the new ones appear on free pads.
 //
-// - Pad chord notes: note colour (C red, D green, E yellow, F orange, G blue,
+// - Chord notes: note colour (C red, D green, E yellow, F orange, G blue,
 //   A turquoise, B pink; sharps are a mix of their two neighbours).
-// - Generative plucks: a short glow in the note colour on a free pad.
-// - Touch plucks: the touched pad itself glows water blue.
+// - Plucks: always water blue, fading out with a fast flicker, like light on
+//   water. Generative plucks appear on a free pad, touch plucks on the touched pad.
 //
 // Plain C++ with no hardware access: it only computes 16 colours, so it can be
 // tested on a computer.
 #pragma once
 #include <stdint.h>
 #include "../util/Rng.h"
-
-struct Rgb {
-  uint8_t r, g, b;
-};
+#include "Colour.h"
 
 class PondLeds {
  public:
@@ -55,7 +52,7 @@ class PondLeds {
 
   int  findSlot(int src, uint8_t note) const;
   int  freeSlot();
-  void place(int src, uint8_t note, uint8_t target);
+  uint8_t flicker(uint8_t shown);
 
   Slot slots_[PADS];
   uint8_t touchShown_[PADS] = {};

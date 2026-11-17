@@ -337,16 +337,47 @@ LEDs look far too bright at low values otherwise.
 **Smoothing:** displayed brightness rises quickly and falls slowly, so nothing
 flickers. Touch glows fall even slower, like a ripple settling.
 
+**Plucks** are always water blue, never their note colour, so chords and
+plucks are easy to tell apart. As a pluck fades, its brightness jumps randomly
+a little below its value every frame (30 times a second): a fast flicker. The
+quieter it gets, the deeper the flicker, so it sparkles out like light on water.
+
 **Touch plucks** carry a **tag**: the number of the pad that was touched. It
 travels with the pluck recipe to core 1 and comes back with the voice's level,
 so the LED code knows exactly which pad should glow water blue.
 
-**Colours:** C red, D green, E yellow, F orange, G blue, A turquoise, B pink.
-A sharp is the average of its two neighbours (C# is between red and green).
+**Chord colours:** C red, D green, E yellow, F orange, G blue, A turquoise,
+B pink. A sharp is the average of its two neighbours (C# is between red and green).
 
 The hardware side (`src/hw/TrellisPads.cpp`) is kept separate and thin: it
 only reads key presses and sends 16 colours over I2C. So the pond logic can be
 tested on a computer.
+
+---
+
+## 7c. The SHIFT menu (`src/ui/Menu.cpp`, `src/app/Settings.cpp`)
+
+Three pieces, each with one job:
+
+- **`Settings`** holds the 16 values exactly as you pressed them (pad 1..16).
+  It knows what each value *means*: for example VERB 10 → reverb wet 153/256,
+  BPM 8 → 60 BPM, LFO 5 → a 24 s cycle. `apply()` sends one setting to the
+  sound engine, the sequencer or the LEDs.
+- **`Menu`** is a small *state machine*: CLOSED → LIST (all parameters) →
+  VALUE (one parameter's page) → back to LIST. It turns pad presses into
+  setting changes and draws the menu colours. It never touches the sound
+  itself; it only reports "parameter X changed".
+- **The sketch** connects them: it applies the change and prints it.
+
+Some mappings are on a curve rather than a straight line, because that's
+how we hear and see:
+- **LFO** goes from 60 s to 2 s in equal *ratios* (each step is about 20% faster).
+- **LIGHT** is squared (value² / 256), so the lowest steps are very dim, for a
+  dark bedroom.
+
+The **sleep timer** is a deadline: when SLEEP is set (or playing starts), it
+remembers "now + N minutes". When that time comes, it does the same as
+pressing STOP, so the music fades out naturally.
 
 ---
 
@@ -361,7 +392,22 @@ input + feedback --> [ left delay ] --> [ right delay ] --+
 ```
 
 The first echo comes from the left, the second from the right, the third from the
-left again (quieter and darker), and so on. The low-pass in the feedback makes every
+left again (quieter and darker), and so on. That's the **ping-pong** mode; DMOD
+picks one of four:
+
+| Mode | What happens |
+|---|---|
+| Forward | plain echoes in the middle |
+| Ping-pong | echoes bounce left, right, left … |
+| Reverse | every echo plays backwards |
+| Reverse ping-pong | backwards on the left, then bouncing forwards to the right |
+
+**Reverse** works like this: a second reader walks *backwards* through the
+recent sound while the writer walks forwards, so they move apart by 2 samples
+every step. When the reader has covered the whole delay length, it jumps back
+and starts the next piece. Each piece gets a smooth window (half a sine: silent
+→ full → silent), so the jumps can't click and every echo *swells in*. That
+swell is the classic dreamy "reverse" sound. The low-pass in the feedback makes every
 repeat a little darker, so the echoes melt into the reverb.
 
 - **Time:** a dotted 8th note (3/4 of a beat), so the echoes sit in the tempo.
@@ -497,8 +543,12 @@ AmbientTrellis/
     SoftComp.h              compressor + soft clipper (reusable)
   src/music/                (core 0)
     Sequencer.*             chords, voice leading, plucks, touch
+  src/app/                  (core 0)
+    Settings.*              the 16 menu parameters: values, names, meaning
   src/ui/                   (core 0)
     PondLeds.*              the pond of notes on the pads
+    Menu.*                  the SHIFT menu (state machine + colours)
+    Colour.h                LED colours and brightness curves
   src/hw/                   (core 0)
     TrellisPads.*           NeoTrellis keys and LEDs over I2C
 tools/

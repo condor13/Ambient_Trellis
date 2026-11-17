@@ -80,6 +80,12 @@ void Sequencer::nextChordNow(uint32_t nowMs) {
   playChord(degree_, nowMs);
 }
 
+void Sequencer::goHome(uint32_t nowMs) {
+  if (!playing_) return;
+  degree_ = 0;
+  playChord(degree_, nowMs);
+}
+
 void Sequencer::tick(uint32_t nowMs) {
   if (!playing_) return;
 

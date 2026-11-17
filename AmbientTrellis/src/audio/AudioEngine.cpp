@@ -36,6 +36,7 @@ void AUDIO_FAST(AudioEngine::render)(int16_t *out, int frames) {
   pads.control(params);
   delay_.setTime(params.delaySamples);
   delay_.feedback = (int32_t)params.delayFeedback;
+  delay_.mode = (int32_t)(params.delayMode & 3);
   reverb_.decay = (int32_t)params.reverbDecay;
 
   const int32_t vol = (int32_t)params.volume;

@@ -1,4 +1,5 @@
 #include "PondLeds.h"
+#include "Colour.h"
 #include <math.h>
 
 namespace {
@@ -17,8 +18,6 @@ const Rgb NATURAL[7] = {
 const int8_t LOWER[12] = {0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6};
 const bool   SHARP[12] = {false, true, false, true, false, false,
                           true, false, true, false, true, false};
-
-const Rgb WATER = {40, 150, 255};     // touch plucks and the start-up ripple
 
 constexpr uint16_t PAD_ON = 200;      // below this a pad note counts as silent
 constexpr uint16_t PLUCK_ON = 60;
@@ -46,18 +45,6 @@ uint8_t smooth(uint8_t shown, uint8_t target, int32_t fall = 6) {
   return (uint8_t)s;
 }
 
-// Scale a colour by brightness b (0..255) with a gamma curve, so dim glows
-// look smooth (LEDs are very bright at low values otherwise).
-Rgb scale(Rgb c, uint8_t b, uint8_t master) {
-  uint32_t g = (uint32_t)b * b / 255;               // gamma 2
-  g = g * master / 255;
-  return Rgb{(uint8_t)(c.r * g / 255), (uint8_t)(c.g * g / 255), (uint8_t)(c.b * g / 255)};
-}
-
-Rgb brighter(Rgb a, Rgb b) {
-  return Rgb{a.r > b.r ? a.r : b.r, a.g > b.g ? a.g : b.g, a.b > b.b ? a.b : b.b};
-}
-
 }  // namespace
 
 Rgb PondLeds::noteColour(uint8_t note) {
@@ -66,6 +53,15 @@ Rgb PondLeds::noteColour(uint8_t note) {
   if (!SHARP[pc]) return lo;
   Rgb hi = NATURAL[(LOWER[pc] + 1) % 7];
   return Rgb{(uint8_t)((lo.r + hi.r) / 2), (uint8_t)((lo.g + hi.g) / 2), (uint8_t)((lo.b + hi.b) / 2)};
+}
+
+// Light on water: every frame (30x a second) the brightness jumps randomly a
+// little below its value. The quieter the pluck gets, the deeper the flicker,
+// so it sparkles out as it fades.
+uint8_t PondLeds::flicker(uint8_t shown) {
+  uint32_t depth = 40 + (255u - shown) * 150u / 255u;      // 40..190 of 255
+  uint32_t f = 255u - rng_.below(depth + 1);
+  return (uint8_t)(shown * f / 255u);
 }
 
 void PondLeds::begin(uint32_t seed, uint32_t nowMs) {
@@ -139,11 +135,18 @@ void PondLeds::update(const Input &in, uint32_t nowMs, Rgb *out) {
   // (a slower fade, like a ripple settling on the water)
   for (int i = 0; i < PADS; i++) touchShown_[i] = smooth(touchShown_[i], touchT[i], 20);
 
-  // 6. Colours
+  // 6. Colours: chord notes in their note colour, plucks water blue with flicker.
   for (int i = 0; i < PADS; i++) {
-    Rgb c = {0, 0, 0};
-    if (slots_[i].src >= 0) c = scale(noteColour(slots_[i].note), slots_[i].shown, brightness);
-    if (touchShown_[i]) c = brighter(c, scale(WATER, touchShown_[i], brightness));
+    Rgb c = colour::BLACK;
+    const Slot &sl = slots_[i];
+    if (sl.src >= PAD_SOURCES) {
+      c = colour::gamma(colour::WATER, flicker(sl.shown), brightness);
+    } else if (sl.src >= 0) {
+      c = colour::gamma(noteColour(sl.note), sl.shown, brightness);
+    }
+    if (touchShown_[i]) {
+      c = colour::brighter(c, colour::gamma(colour::WATER, flicker(touchShown_[i]), brightness));
+    }
     out[i] = c;
   }
 
@@ -158,7 +161,7 @@ void PondLeds::update(const Input &in, uint32_t nowMs, Rgb *out) {
       float k = 1.0f - fabsf(d - r) / 0.9f;
       if (k <= 0) continue;
       uint8_t b = (uint8_t)(255.0f * k * fade);
-      out[i] = brighter(out[i], scale(WATER, b, brightness));
+      out[i] = colour::brighter(out[i], colour::gamma(colour::WATER, b, brightness));
     }
   }
 }

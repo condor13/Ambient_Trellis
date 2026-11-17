@@ -23,6 +23,7 @@ struct SoundParams {
   volatile uint32_t delayMix    = 110;     // echoes level, 0 = off (Q8)
   volatile uint32_t delayFeedback = 15000; // Q15, ~0.46
   volatile uint32_t delaySamples = 24000;  // delay time at 32 kHz (set from tempo)
+  volatile uint32_t delayMode   = 1;       // 0 forward, 1 ping-pong, 2 reverse, 3 reverse ping-pong
 
   // Master
   volatile uint32_t volume      = 225;     // 0..256

@@ -98,8 +98,9 @@ while the new ones fade in on free pads.
 
 Sharps and flats are a mix of the two neighbouring colours (C# between red and green).
 
-**Touching a pad** plucks a note from the current chord. These touch notes
-glow **blue**, like water.
+**Plucks** always glow **water blue**, never in their note colour, and fade out
+with a fast flicker, like light on water. Generative plucks appear on a free
+pad; **touching a pad** plucks a note of the current chord and that pad glows.
 
 ### Menu mode
 
@@ -109,7 +110,7 @@ glow **blue**, like water.
 - Exceptions:
   - PLAY: green when playing, red when stopped
   - ROOT: note colours plus indigo scale pads
-  - LITE previews its own brightness
+  - LITE: every pad shows its own brightness level, the current one in white
 
 ## SHIFT menu
 
@@ -132,25 +133,28 @@ out naturally, and Start fades the first chord in.
 
 | # | Parameter | Values |
 |---|---|---|
-| 1 | PLAY | start / stop |
-| 2 | DENS | pluck density, sparse → dense |
-| 3 | ROOT | pads 1–12 = C … B; pads 13–16 = scale: Minor, Dorian, Major, Lydian |
-| 4 | DRFT | how far the progression wanders, 1 = stays home |
-| 5 | VERB | reverb, dry → wet |
-| 6 | LFO | very slow (~1 min) → faster (~2 s) |
-| 7 | BPM | 53 → 68 |
-| 8 | BARS | 1 / 2 / 4 / 8 bars per chord |
-| 9 | ATK | chord swell time |
-| 10 | REL | chord fade time |
-| 11 | BRIT | pad brightness (FM amount) |
-| 12 | VOL | master volume |
-| 13 | DLY | pluck delay amount, 1 = off |
-| 14 | DMOD | forward / ping-pong / reverse / reverse ping-pong |
-| 15 | LITE | LED and display brightness, for the bedroom at night |
-| 16 | SLEEP | 1–15 = fade out and stop after 10–150 minutes; 16 = never |
+| # | Parameter | Values | Default |
+|---|---|---|---|
+| 1 | PLAY | start / stop | playing |
+| 2 | DENS | pluck density, sparse → dense | 4 (rare) |
+| 3 | ROOT | pads 1–12 = C … B; pads 13–16 = scale: Minor, Dorian, Major, Lydian. Changing it moves to the new key's home chord right away. | D Dorian |
+| 4 | DRFT | how far the progression wanders, 1 = stays home | 6 |
+| 5 | VERB | reverb, dry → wet | 10 |
+| 6 | LFO | very slow (~1 min) → faster (~2 s) | 5 (~24 s) |
+| 7 | BPM | 53 → 68 | 60 |
+| 8 | BARS | 1 / 2 / 4 / 8 bars per chord | 4 |
+| 9 | ATK | chord swell time, 1 → 16 s | 7 s |
+| 10 | REL | chord fade time, 0.5 → 15.5 s | 7.5 s |
+| 11 | BRIT | pad brightness (FM amount) | 7 |
+| 12 | VOL | master volume | 14 |
+| 13 | DLY | pluck delay amount, 1 = off | 7 |
+| 14 | DMOD | forward / ping-pong / reverse / reverse ping-pong | ping-pong |
+| 15 | LITE | LED (and later display) brightness, very dim at the low end for the bedroom | 10 |
+| 16 | SLEEP | 1–15 = fade out and stop after 10–150 minutes; 16 = never | never |
 
-Settings are saved to flash a few seconds after a change. The box starts the
-next day with the settings last used.
+Settings will be saved to flash a few seconds after a change (step 8), so the
+box starts the next day with the settings last used. Until then it starts with
+the defaults.
 
 ## Motion (LIS3DH)
 
@@ -188,7 +192,8 @@ AmbientTrellis/
   src/audio/                core 1: AudioEngine (mixer), PadSynth, PluckSynth,
                             PluckDelay, Reverb, SoftComp, SoundParams, Events
   src/music/                core 0: Sequencer (chords, voice leading, plucks)
-  src/ui/                   core 0: PondLeds (what the pads show; plain logic)
+  src/app/                  core 0: Settings (the 16 menu parameters and what they mean)
+  src/ui/                   core 0: PondLeds, Menu, Colour (what the pads show; plain logic)
   src/hw/                   core 0: TrellisPads (NeoTrellis driver)
 tools/render_wav.cpp        renders the same code to a WAV file on a computer
 ```
@@ -219,23 +224,20 @@ The audio engine, sequencer and LED logic also compile on a PC (everything
 except `src/hw/`), and render a WAV file:
 
 ```
-g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src/{audio,music,util,ui}/*.cpp -o render_wav
+g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src/{audio,music,util,ui,app}/*.cpp -o render_wav
 ./render_wav out.wav 120
 ```
 
-## Current state: step 4
+## Current state: step 5
 
-- Generative FM pad chords at 60 BPM, a new chord every 4 bars (16 s),
-  in D Dorian. Starts playing at power-on.
-- Plate reverb (Dattorro style) with a ~8 s dark tail and slow modulation.
-- Rare, soft, high plucks (Karplus-Strong) from the current chord, with a
-  dotted-8th ping-pong delay and lots of reverb.
-- **NeoTrellis pond:** every sounding note glows in its note colour on a random
-  free pad, fading with the sound. A blue ripple at start-up.
-- **Touch a pad:** plucks a note of the current chord; the pad glows water blue.
-- **SHIFT** (GP6) jumps to the next chord, for testing.
-- Serial Monitor (115200 baud) shows chords, plucks and the audio CPU load.
-- No menu or display yet.
+- Generative FM pad chords, plate reverb, rare soft plucks with a pluck delay.
+- **NeoTrellis pond:** chord notes glow in their note colours on random free
+  pads; plucks glow water blue and flicker out. Blue ripple at start-up.
+- **Touch a pad:** plucks a note of the current chord.
+- **SHIFT menu** with all 16 parameters, including the sleep timer and 4 delay modes.
+- Serial Monitor (115200 baud) shows chords, plucks, menu changes (the texts the
+  display will show) and the audio CPU load.
+- No display yet; settings are not saved yet.
 
 ## Roadmap
 
