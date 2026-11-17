@@ -1,7 +1,7 @@
 // Menu - the SHIFT menu on the 4x4 pads. Runs on core 0.
 //
 //   SHIFT            open the menu (all 16 parameters light up red)
-//   tap a parameter  its value page opens: every possible value glows at 20%,
+//   tap a parameter  its value page opens: every possible value glows dimmed,
 //                    the current one at full brightness
 //   tap a value      it is set, and the menu goes back to the parameter list
 //   SHIFT            close the menu; it also closes after 10 s without a touch

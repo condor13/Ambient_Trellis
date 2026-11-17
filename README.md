@@ -105,7 +105,7 @@ pad; **touching a pad** plucks a note of the current chord and that pad glows.
 ### Menu mode
 
 - Settings are **red**.
-- On a value page, every pad the parameter uses glows at 20% and the chosen
+- On a value page, every pad the parameter uses glows dimmed (80 of 255) and the chosen
   value is at full brightness. Four-option parameters light only 4 pads.
 - Exceptions:
   - PLAY: green when playing, red when stopped

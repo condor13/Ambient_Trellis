@@ -3,7 +3,7 @@
 
 namespace {
 // (B_ prefix: brightness levels, not to be confused with the menu states)
-constexpr uint8_t B_DIM = 51;      // 20%
+constexpr uint8_t B_DIM = 80;      // ~30%: the "other values" on a value page
 constexpr uint8_t B_LIST = 110;    // parameter list (~45%)
 constexpr uint8_t B_FULL = 255;
 }  // namespace
