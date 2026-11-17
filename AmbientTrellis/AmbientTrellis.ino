@@ -1,7 +1,7 @@
-// Ambient Trellis - step 5: generative pads, reverb, plucks, NeoTrellis pond,
-// SHIFT menu.
+// Ambient Trellis - step 6: generative pads, reverb, plucks, NeoTrellis pond,
+// SHIFT menu, OLED koi pond.
 //
-// Core 0: sequencer, pads, LEDs, menu (display later)
+// Core 0: sequencer, pads, LEDs, menu, display
 // Core 1: audio engine -> PCM5102A over I2S
 //
 // Board: Raspberry Pi Pico (Arduino-Pico core by Earle Philhower)
@@ -16,13 +16,13 @@
 //   src/music/     the generative sequencer (core 0)
 //   src/app/       the 16 settings and what they mean (core 0)
 //   src/ui/        what the LEDs show: pond and menu (plain logic, core 0)
-//   src/hw/        hardware drivers: NeoTrellis (core 0)
+//   src/hw/        hardware drivers: NeoTrellis, OLED (core 0)
 // docs/HOW_IT_WORKS.md explains the math.
 //
 // Controls:
 //   The box starts playing by itself.
 //   Touch a pad = pluck a note of the current chord (glows blue).
-//   SHIFT (GP6) = open / close the menu (see README).
+//   SHIFT (GP6) = open the menu / back / close (see README).
 //   Serial Monitor (115200) shows chords, plucks, menu changes and the audio load.
 
 #ifdef USE_TINYUSB
@@ -33,10 +33,13 @@
 #include "src/Config.h"
 #include "src/app/Settings.h"
 #include "src/audio/AudioEngine.h"
+#include "src/hw/Oled.h"
 #include "src/hw/TrellisPads.h"
 #include "src/music/Sequencer.h"
+#include "src/ui/Canvas.h"
 #include "src/ui/Menu.h"
 #include "src/ui/PondLeds.h"
+#include "src/ui/Screen.h"
 
 AudioEngine engine;
 Sequencer seq;
@@ -44,6 +47,9 @@ TrellisPads pads;
 PondLeds pond;
 Menu menu;
 Settings settings;
+Oled oled;
+Screen screen;
+Canvas canvas;
 I2S i2s(OUTPUT);
 
 uint32_t sleepAtMs = 0;             // 0 = no sleep timer running
@@ -61,17 +67,21 @@ void setup() {
   Wire1.setSDA(cfg::PIN_SDA);
   Wire1.setSCL(cfg::PIN_SCL);
   Wire1.begin();
-  Wire1.setClock(400000);
+  Wire1.setClock(cfg::I2C_HZ);
 
   while (!engineReady) delay(1);    // wait for core 1 to set up the engine
 
   if (!pads.begin()) Serial.println("NeoTrellis not found (check I2C wiring). Playing without pads.");
-  Wire1.setClock(400000);           // the seesaw library may reset it
+  Wire1.setClock(cfg::I2C_HZ);      // the seesaw library may reset it
+  if (!oled.begin(cfg::OLED_ADDR)) Serial.println("OLED not found at 0x3C. Playing without display.");
 
   seq.begin(&engine, rp2040.hwrand32());
   pond.begin(rp2040.hwrand32(), millis());
   settings.setDefaults();
   settings.applyAll(engine, seq, pond, millis());
+  oled.setContrast(settings.ledBrightness());
+  screen.begin(rp2040.hwrand32(), millis());
+  screen.overlay("AMBIENT", "TRELLIS", millis(), 2500);
 }
 
 // Start the sleep timer (when SLEEP is set, or when playing starts).
@@ -81,8 +91,9 @@ static void armSleep(uint32_t now) {
   sleepAtMs = min ? ((now + min * 60000u) | 1u) : 0;
 }
 
-// Text that the display will show over the pond in step 6. For now: Serial.
+// A short text over the pond (and in the Serial Monitor).
 static void showText(const char *title, const char *value) {
+  screen.overlay(title, value, millis());
   if (value) Serial.printf("[%s %s]\n", title, value);
   else Serial.printf("[%s]\n", title);
 }
@@ -94,19 +105,30 @@ static void showParam(Param p) {
 }
 
 // A menu press or SHIFT did something: apply it and show it.
+static bool changedInMenu = false;
+static Param lastChanged = P_PLAY;
+
 static void handleMenu(const Menu::Result &r, uint32_t now) {
+  if (r.opened && !menu.onValuePage()) changedInMenu = false;
   if (r.changed) {
     settings.apply(r.param, engine, seq, pond, now);
     if (r.param == P_SLEEP || (r.param == P_PLAY && settings.playing)) armSleep(now);
+    if (r.param == P_LITE) oled.setContrast(settings.ledBrightness());
+    changedInMenu = true;
+    lastChanged = r.param;
     showParam(r.param);
-  } else if (r.opened) {
+  } else if (r.opened || r.back) {
     if (menu.onValuePage()) showParam(menu.page());
     else showText("MENU", nullptr);
   }
-  if (r.closed) showText("MENU CLOSED", nullptr);
+  if (r.closed) {
+    Serial.println("[MENU CLOSED]");
+    if (changedInMenu) showParam(lastChanged);   // remind what changed, over the pond
+  }
 }
 
 // Pads: in the menu they choose settings, otherwise each touch plucks a note.
+static uint32_t touchPlucks = 0;    // plucks that already made their own ripple
 static void taskKeys(uint32_t now) {
   static uint32_t last = 0;
   if (now - last < 20) return;
@@ -114,8 +136,13 @@ static void taskKeys(uint32_t now) {
   pads.poll();
   uint8_t pad;
   while (pads.nextPress(pad)) {
-    if (menu.isOpen()) handleMenu(menu.press(pad, settings, now), now);
-    else seq.touch(pad);
+    if (menu.isOpen()) {
+      handleMenu(menu.press(pad, settings, now), now);
+    } else {
+      seq.touch(pad);
+      screen.ripplePad(pad);
+      touchPlucks++;
+    }
   }
   handleMenu(menu.tick(now), now);   // 10 s timeout
 }
@@ -138,8 +165,32 @@ static void taskLeds(uint32_t now) {
   }
   Rgb colours[PondLeds::PADS];
   pond.update(in, now, colours);
-  if (menu.isOpen()) menu.draw(settings, colours);
+  menu.draw(settings, now, colours);   // over the pond while open (and while closing)
   pads.show(colours);
+}
+
+// Display: ~20 pictures per second, each sent in 8 strips between other work.
+static void taskDisplay(uint32_t now) {
+  if (!oled.ok()) return;
+  oled.sendSome();                   // one strip per loop
+
+  // Ripples for chord changes and generative plucks
+  static uint32_t chords = 0, plucks = 0;
+  if (seq.chordCount() != chords) {
+    chords = seq.chordCount();
+    screen.rippleRandom(22);
+  }
+  while (plucks != seq.pluckCount()) {
+    plucks++;
+    if (touchPlucks) touchPlucks--;  // a touch: it already rippled at its pad
+    else screen.rippleRandom(10);
+  }
+
+  static uint32_t last = 0;
+  if (now - last < 50) return;
+  last = now;
+  screen.draw(canvas, settings, menu, now);
+  oled.startFrame(canvas);
 }
 
 // SHIFT key: open / close the menu.
@@ -201,6 +252,7 @@ void loop() {
   taskShift(now);
   taskKeys(now);
   taskLeds(now);
+  taskDisplay(now);
   taskSleep(now);
   taskSerial(now);
 }

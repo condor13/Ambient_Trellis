@@ -8,9 +8,11 @@ namespace cfg {
 constexpr int PIN_I2S_BCK = 18;
 constexpr int PIN_I2S_DIN = 20;
 
-// I2C1: NeoTrellis, OLED, LIS3DH (not used yet in step 1)
+// I2C1: NeoTrellis (0x2E), OLED (0x3C), LIS3DH (0x18/0x19, later)
 constexpr int PIN_SDA = 26;
 constexpr int PIN_SCL = 27;
+constexpr uint32_t I2C_HZ = 400000;
+constexpr uint8_t OLED_ADDR = 0x3C;
 
 // SHIFT key, wired to GND, internal pull-up
 constexpr int PIN_SHIFT = 6;

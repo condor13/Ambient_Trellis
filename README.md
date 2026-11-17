@@ -104,20 +104,23 @@ pad; **touching a pad** plucks a note of the current chord and that pad glows.
 
 ### Menu mode
 
-- Settings are **red**.
-- On a value page, every pad the parameter uses glows dimmed (80 of 255) and the chosen
-  value is at full brightness. Four-option parameters light only 4 pads.
+- Opening and closing the menu **sweeps** across the rows, so you can't miss it.
+- Each row of parameters has its own colour: row 1 **amber**, row 2 **violet**,
+  row 3 **white**, row 4 **cyan**. PLAY shows green when playing, red when stopped.
+- A value page uses its parameter's colour as a **bar**: pads 1 up to the value
+  at full brightness, the rest at 20%. Four-option parameters use only 4 pads.
 - Exceptions:
-  - PLAY: green when playing, red when stopped
-  - ROOT: note colours plus indigo scale pads
+  - ROOT: the 12 roots in their note colours, plus 4 indigo scale pads
   - LITE: every pad shows its own brightness level, the current one in white
 
 ## SHIFT menu
 
-1. Press SHIFT (GP6) to open the menu. The grid shows the 16 parameters in red.
-2. Tap a parameter. The grid shows its value.
-3. Tap a pad 1–16 to set the value. The box goes back to the parameter list.
-4. Press SHIFT to exit. The menu also closes by itself after 10 seconds without a touch.
+1. Press **SHIFT** (GP6) to open the menu. The pads show the 16 parameters.
+2. **Tap a parameter.** Its value page opens.
+3. **Tap a pad** to set the value. The page stays open, so you can try other values.
+4. **SHIFT** on a value page goes back to the parameter list.
+5. **SHIFT** on the parameter list closes the menu. It also closes by itself
+   after 10 seconds without a touch.
 
 SHIFT + PLAY toggles start/stop directly. Stop lets the chord and reverb fade
 out naturally, and Start fades the first chord in.
@@ -165,11 +168,14 @@ General behaviour, not a menu setting:
 
 ## Display
 
-- **Play mode:** a pond with koi drawn in code. They swim faster or slower with
-  the LFO speed, and ripples spread when the chord changes. When something
-  changes, a short text such as `REVERB 12` appears over the pond and fades out.
-- **Menu:** a 4×4 grid of text labels that matches the pads. A value page
-  shows the full parameter name and a value bar.
+- **Play mode:** a koi pond, drawn in code. Three koi swim slow curves (faster
+  when the LFO is faster), lily pads float on top, and ripples spread when the
+  chord changes, a pluck sounds, or you touch a pad (the ripple appears where
+  that pad is). When something changes, a text box such as `REVERB 12` appears
+  over the pond for 2 seconds.
+- **Menu:** a 4x4 grid of labels laid out like the pads. A value page shows the
+  parameter's name, its value and the same bar as the pads.
+- LITE also sets the display brightness.
 
 ## Software design
 
@@ -193,16 +199,17 @@ AmbientTrellis/
                             PluckDelay, Reverb, SoftComp, SoundParams, Events
   src/music/                core 0: Sequencer (chords, voice leading, plucks)
   src/app/                  core 0: Settings (the 16 menu parameters and what they mean)
-  src/ui/                   core 0: PondLeds, Menu, Colour (what the pads show; plain logic)
-  src/hw/                   core 0: TrellisPads (NeoTrellis driver)
+  src/ui/                   core 0: PondLeds, Menu, Colour, Screen, Canvas
+                            (what the pads and display show; plain logic)
+  src/hw/                   core 0: TrellisPads (NeoTrellis), Oled (SSD1306 driver)
 tools/render_wav.cpp        renders the same code to a WAV file on a computer
+tools/screen_preview.cpp    draws the display frames on a computer (for a GIF)
 ```
 
 ### Libraries
 
 - Raspberry Pi Pico/RP2040 board package (Earle F. Philhower)
 - Adafruit seesaw Library
-- Adafruit SSD1306 + Adafruit GFX
 - Adafruit LIS3DH
 
 ## Building and uploading
@@ -228,16 +235,16 @@ g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src
 ./render_wav out.wav 120
 ```
 
-## Current state: step 5
+## Current state: step 6
 
 - Generative FM pad chords, plate reverb, rare soft plucks with a pluck delay.
 - **NeoTrellis pond:** chord notes glow in their note colours on random free
   pads; plucks glow water blue and flicker out. Blue ripple at start-up.
 - **Touch a pad:** plucks a note of the current chord.
-- **SHIFT menu** with all 16 parameters, including the sleep timer and 4 delay modes.
-- Serial Monitor (115200 baud) shows chords, plucks, menu changes (the texts the
-  display will show) and the audio CPU load.
-- No display yet; settings are not saved yet.
+- **SHIFT menu** with all 16 parameters: row colours, sweeps, value bars.
+- **OLED:** koi pond with ripples, text overlays, menu grid and value pages.
+- Serial Monitor (115200 baud) shows chords, plucks, menu changes and the audio load.
+- Settings are not saved yet; tilt and shake not used yet.
 
 ## Roadmap
 
@@ -248,4 +255,4 @@ g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src
 5. SHIFT menu
 6. OLED: koi pond and menu
 7. Tilt and shake
-8. Settings saved to flash, sleep timer
+8. Settings saved to flash

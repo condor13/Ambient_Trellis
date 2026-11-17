@@ -11,7 +11,7 @@ The Pico has two processor cores, and we give each one a clear job:
 
 | Core | Job | Files |
 |---|---|---|
-| **Core 0** | Decides *what* to play (chords, plucks), reads the pads, drives the LEDs (later: display, menu) | `src/music/`, `src/ui/`, `src/hw/`, `AmbientTrellis.ino` |
+| **Core 0** | Decides *what* to play (chords, plucks), reads the pads, drives the LEDs, the menu and the display | `src/music/`, `src/ui/`, `src/hw/`, `AmbientTrellis.ino` |
 | **Core 1** | Makes the *sound*: 32,000 stereo samples per second | `src/audio/*` |
 
 Core 0 sends small messages ("start note 62", "pluck this string") to core 1.
@@ -363,11 +363,22 @@ Three pieces, each with one job:
   It knows what each value *means*: for example VERB 10 → reverb wet 153/256,
   BPM 8 → 60 BPM, LFO 5 → a 24 s cycle. `apply()` sends one setting to the
   sound engine, the sequencer or the LEDs.
-- **`Menu`** is a small *state machine*: CLOSED → LIST (all parameters) →
-  VALUE (one parameter's page) → back to LIST. It turns pad presses into
-  setting changes and draws the menu colours. It never touches the sound
-  itself; it only reports "parameter X changed".
-- **The sketch** connects them: it applies the change and prints it.
+- **`Menu`** is a small *state machine* with three states:
+
+  ```
+  CLOSED --SHIFT--> LIST --tap parameter--> VALUE --tap pad--> VALUE (value set)
+     ^               |  ^                     |
+     +-----SHIFT-----+  +--------SHIFT--------+
+  (and 10 s without a touch: back to CLOSED)
+  ```
+
+  It turns pad presses into setting changes and draws the menu colours. It
+  never touches the sound itself; it only reports "parameter X changed".
+- **The sketch** connects them: it applies the change and shows it.
+
+**The sweep** is just time: when the menu opens, row *r* appears after
+r × 60 ms (with a short white flash at the front). When it closes, the rows
+disappear from the bottom up, and the pond shows through again.
 
 Some mappings are on a curve rather than a straight line, because that's
 how we hear and see:
@@ -378,6 +389,42 @@ how we hear and see:
 The **sleep timer** is a deadline: when SLEEP is set (or playing starts), it
 remembers "now + N minutes". When that time comes, it does the same as
 pressing STOP, so the music fades out naturally.
+
+---
+
+## 7d. The display (`src/ui/Canvas.*`, `src/ui/Screen.*`, `src/hw/Oled.*`)
+
+**The picture** is 128 × 64 black-or-white pixels = 8192 bits = 1 KB. It's
+stored the way the SSD1306 chip wants it: 8 horizontal strips ("pages") of 8
+pixel rows; each byte is one column of 8 pixels in a strip. So pixel (x, y)
+is bit `y % 8` of byte `(y / 8) × 128 + x`, and the finished picture can be
+sent as it is.
+
+**Drawing** (`Canvas`) is a handful of classics:
+- **Lines** with Bresenham's algorithm: step along the longer direction and
+  keep an error counter for the other one. Only additions, no division.
+- **Circles** with the midpoint algorithm: compute one eighth of the circle
+  and mirror it 8 ways. Dotted circles skip some points, which is how ripples
+  "fade out" on a display that has no grey.
+- **Text** with a built-in 5×7 font: each character is 7 rows of 5 bits.
+
+**The koi** (`Screen`):
+- Each fish has a position, a direction (heading) and a turning speed. The
+  turning speed drifts randomly a little every frame, so the fish wander in
+  smooth curves. Near the edge, the heading is pulled towards the middle.
+- The body is 6 filled circles along a "spine" behind the head. Each spine point
+  sways sideways by `sin(phase - i × 0.9)`. Because every point is a bit
+  behind the one before it, the sway travels down the body like a real swimming
+  wave, getting bigger towards the tail.
+- The fin, eyes and spots are a few lines and black pixels. The spots come from
+  the fish's own random number, so each koi has its own pattern.
+- Speed comes from the LFO setting: 6 px/s at the slowest, 36 px/s at the
+  fastest. The tail beats faster when the fish swims faster.
+
+**Sending it** (`Oled`): sending 1 KB over I2C at 400 kHz takes about 25 ms.
+Doing it in one go would freeze the pads for that long. So the picture is
+copied and then sent **one strip per loop** (about 3 ms each), with key
+reading and LED updates in between. About 20 pictures per second.
 
 ---
 
@@ -549,8 +596,12 @@ AmbientTrellis/
     PondLeds.*              the pond of notes on the pads
     Menu.*                  the SHIFT menu (state machine + colours)
     Colour.h                LED colours and brightness curves
+    Canvas.*                1-bit picture, lines, circles, 5x7 font
+    Screen.*                koi pond, menu pages, text overlays
   src/hw/                   (core 0)
     TrellisPads.*           NeoTrellis keys and LEDs over I2C
+    Oled.*                  SSD1306 display driver, sends a picture in 8 strips
 tools/
   render_wav.cpp            runs the same code on a computer and writes a WAV
+  screen_preview.cpp        draws display frames on a computer
 ```
