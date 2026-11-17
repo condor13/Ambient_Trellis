@@ -63,17 +63,23 @@ void setup() {
   Serial.begin(115200);
   pinMode(cfg::PIN_SHIFT, INPUT_PULLUP);
 
-  // I2C bus 1 on GP26/27: NeoTrellis now, OLED and LIS3DH later.
+  // I2C bus 1 on GP26/27: NeoTrellis (and the LIS3DH later)
   Wire1.setSDA(cfg::PIN_SDA);
   Wire1.setSCL(cfg::PIN_SCL);
   Wire1.begin();
   Wire1.setClock(cfg::I2C_HZ);
 
+  // I2C bus 0 on GP16/17: the OLED, on its own
+  Wire.setSDA(cfg::PIN_OLED_SDA);
+  Wire.setSCL(cfg::PIN_OLED_SCL);
+  Wire.begin();
+  Wire.setClock(cfg::OLED_I2C_HZ);
+
   while (!engineReady) delay(1);    // wait for core 1 to set up the engine
 
   if (!pads.begin()) Serial.println("NeoTrellis not found (check I2C wiring). Playing without pads.");
   Wire1.setClock(cfg::I2C_HZ);      // the seesaw library may reset it
-  if (!oled.begin(cfg::OLED_ADDR)) Serial.println("OLED not found at 0x3C. Playing without display.");
+  if (!oled.begin(cfg::OLED_ADDR)) Serial.println("OLED not found at 0x3C on GP16/17. Playing without display.");
 
   seq.begin(&engine, rp2040.hwrand32());
   pond.begin(rp2040.hwrand32(), millis());

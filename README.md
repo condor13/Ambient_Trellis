@@ -31,12 +31,14 @@ A boxy enclosure with the 4×4 pads on top, and the SHIFT key and display on the
 | I2S BCK | GP18 | 24 |
 | I2S LRCK | GP19 | 25 |
 | I2S DIN | GP20 | 26 |
-| I2C1 SDA (NeoTrellis, OLED, LIS3DH) | GP26 | 31 |
+| I2C1 SDA (NeoTrellis, LIS3DH) | GP26 | 31 |
 | I2C1 SCL | GP27 | 32 |
+| I2C0 SDA (OLED) | GP16 | 21 |
+| I2C0 SCL (OLED) | GP17 | 22 |
 | SHIFT key (to GND, internal pull-up) | GP6 | 9 |
 
-LRCK must be BCK + 1. The I2C devices are on the Pico's second bus, so the code
-uses `Wire1`.
+LRCK must be BCK + 1. The NeoTrellis and LIS3DH are on the Pico's second I2C
+bus (`Wire1`); the OLED has the first bus (`Wire`) to itself.
 
 ### PCM5102A board jumpers
 

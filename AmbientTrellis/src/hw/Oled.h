@@ -1,4 +1,4 @@
-// Oled - SSD1306 128x64 display over I2C (Wire1, address 0x3C). Core 0.
+// Oled - SSD1306 128x64 display over I2C (Wire = I2C0 on GP16/17, address 0x3C). Core 0.
 //
 // A full picture is 1 KB, which takes ~25 ms to send at 400 kHz. To keep the
 // pads responsive, a picture is sent in its 8 strips ("pages") of 128 bytes,

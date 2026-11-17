@@ -10,24 +10,24 @@ static constexpr uint8_t CTRL_DATA = 0x40;
 static constexpr int CHUNK = 32;   // data bytes per I2C message (fits every Wire buffer)
 
 void Oled::command(uint8_t c) {
-  Wire1.beginTransmission(addr_);
-  Wire1.write(CTRL_CMD);
-  Wire1.write(c);
-  Wire1.endTransmission();
+  Wire.beginTransmission(addr_);
+  Wire.write(CTRL_CMD);
+  Wire.write(c);
+  Wire.endTransmission();
 }
 
 void Oled::command2(uint8_t c, uint8_t arg) {
-  Wire1.beginTransmission(addr_);
-  Wire1.write(CTRL_CMD);
-  Wire1.write(c);
-  Wire1.write(arg);
-  Wire1.endTransmission();
+  Wire.beginTransmission(addr_);
+  Wire.write(CTRL_CMD);
+  Wire.write(c);
+  Wire.write(arg);
+  Wire.endTransmission();
 }
 
 bool Oled::begin(uint8_t address) {
   addr_ = address;
-  Wire1.beginTransmission(addr_);
-  ok_ = (Wire1.endTransmission() == 0);      // is anyone there?
+  Wire.beginTransmission(addr_);
+  ok_ = (Wire.endTransmission() == 0);      // is anyone there?
   if (!ok_) return false;
 
   // Standard start-up sequence for a 128x64 SSD1306 with its own charge pump
@@ -70,18 +70,18 @@ bool Oled::sendSome() {
   if (!ok_ || page_ < 0) return false;
 
   // Where to write: all 128 columns of this one page
-  Wire1.beginTransmission(addr_);
-  Wire1.write(CTRL_CMD);
-  Wire1.write(0x21); Wire1.write(0); Wire1.write(127);           // columns
-  Wire1.write(0x22); Wire1.write((uint8_t)page_); Wire1.write((uint8_t)page_);   // page
-  Wire1.endTransmission();
+  Wire.beginTransmission(addr_);
+  Wire.write(CTRL_CMD);
+  Wire.write(0x21); Wire.write(0); Wire.write(127);           // columns
+  Wire.write(0x22); Wire.write((uint8_t)page_); Wire.write((uint8_t)page_);   // page
+  Wire.endTransmission();
 
   const uint8_t *p = buf_ + page_ * 128;
   for (int i = 0; i < 128; i += CHUNK) {
-    Wire1.beginTransmission(addr_);
-    Wire1.write(CTRL_DATA);
-    Wire1.write(p + i, CHUNK);
-    Wire1.endTransmission();
+    Wire.beginTransmission(addr_);
+    Wire.write(CTRL_DATA);
+    Wire.write(p + i, CHUNK);
+    Wire.endTransmission();
   }
 
   if (++page_ >= 8) page_ = -1;
