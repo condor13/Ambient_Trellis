@@ -3,7 +3,8 @@
 // A thin hardware layer: read key presses, set 16 colours. All the logic of
 // what to show lives in src/ui/PondLeds. Runs on core 0.
 //
-// Pad numbers 0..15 go row by row from the top left (as printed on the board).
+// Pad numbers are logical pads 0..15 (row by row from the top left). The grid
+// can be turned on the board with PAD_ROTATION in Config.h (see util/PadMap.h).
 #pragma once
 #include <stdint.h>
 #include "../ui/PondLeds.h"

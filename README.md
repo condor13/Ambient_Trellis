@@ -107,8 +107,8 @@ pad; **touching a pad** plucks a note of the current chord and that pad glows.
 ### Menu mode
 
 - Opening and closing the menu **sweeps** across the rows, so you can't miss it.
-- Each row of parameters has its own colour: row 1 **amber**, row 2 **violet**,
-  row 3 **white**, row 4 **cyan**. PLAY shows green when playing, red when stopped.
+- Each group of parameters has its own colour: group 1 **amber**, 2 **violet**,
+  3 **white**, 4 **cyan**. PLAY shows green when playing, red when stopped.
 - A value page uses its parameter's colour as a **bar**: pads 1 up to the value
   at full brightness, the rest at 20%. Four-option parameters use only 4 pads.
 - Exceptions:
@@ -127,12 +127,24 @@ pad; **touching a pad** plucks a note of the current chord and that pad glows.
 SHIFT + PLAY toggles start/stop directly. Stop lets the chord and reverb fade
 out naturally, and Start fades the first chord in.
 
+The menu is turned 90° clockwise on the pads (`PAD_ROTATION` in `src/Config.h`),
+so PLAY is the top-right pad and each "row" of parameters runs down a column:
+
+| | | | |
+|---|---|---|---|
+| DLY | ATK | VERB | **PLAY** |
+| DMOD ⁽⁴⁾ | REL | LFO | DENS |
+| LITE | BRIT | BPM | ROOT |
+| SLEEP | VOL | BARS ⁽⁴⁾ | DRFT |
+
+Unturned, in the order the parameters are numbered:
+
 | | 1 | 2 | 3 | 4 |
 |---|---|---|---|---|
-| **Row 1** | PLAY | DENS | ROOT | DRFT |
-| **Row 2** | VERB | LFO | BPM | BARS ⁽⁴⁾ |
-| **Row 3** | ATK | REL | BRIT | VOL |
-| **Row 4** | DLY | DMOD ⁽⁴⁾ | LITE | SLEEP |
+| **Group 1** | PLAY | DENS | ROOT | DRFT |
+| **Group 2** | VERB | LFO | BPM | BARS ⁽⁴⁾ |
+| **Group 3** | ATK | REL | BRIT | VOL |
+| **Group 4** | DLY | DMOD ⁽⁴⁾ | LITE | SLEEP |
 
 ⁽⁴⁾ = four options, so only 4 pads are lit.
 
@@ -178,6 +190,9 @@ General behaviour, not a menu setting:
 - **Menu:** a 4x4 grid of labels laid out like the pads. A value page shows the
   parameter's name, its value and the same bar as the pads.
 - LITE also sets the display brightness.
+- The display is mounted upside down, so it is turned 180° (`OLED_FLIP` in
+  `src/Config.h`). Its menu grid follows the turned pads
+  (`OLED_GRID_FOLLOWS_PADS`).
 
 ## Software design
 

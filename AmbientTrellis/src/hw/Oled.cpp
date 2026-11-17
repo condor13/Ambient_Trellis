@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <string.h>
+#include "../Config.h"
 
 // Every I2C message to the SSD1306 starts with a control byte:
 // 0x00 = commands follow, 0x40 = picture data follows.
@@ -38,8 +39,10 @@ bool Oled::begin(uint8_t address) {
   command(0x40);           // start at row 0
   command2(0x8D, 0x14);    // charge pump on
   command2(0x20, 0x00);    // horizontal addressing: data fills columns, then the next page
-  command(0xA1);           // mirror columns (so x=0 is on the left)
-  command(0xC8);           // mirror rows (so y=0 is at the top)
+  // Orientation: these two decide which corner is (0,0). Swapping both turns
+  // the picture by 180 degrees (OLED_FLIP in Config.h).
+  command(cfg::OLED_FLIP ? 0xA0 : 0xA1);   // column order
+  command(cfg::OLED_FLIP ? 0xC0 : 0xC8);   // row order
   command2(0xDA, 0x12);    // row wiring for 64-row panels
   command2(0x81, 0x80);    // contrast
   command2(0xD9, 0xF1);    // pre-charge

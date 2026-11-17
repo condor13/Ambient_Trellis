@@ -428,6 +428,25 @@ reading and LED updates in between. About 20 pictures per second.
 
 ---
 
+## 7e. Turning the pads and the display (`src/util/PadMap.h`)
+
+All the code thinks in **logical pads** 0..15, row by row from the top left,
+with pad 0 = PLAY. Only the NeoTrellis driver translates between logical pads
+and the real board, using `PAD_ROTATION` (0, 90, 180 or 270 degrees clockwise).
+
+Turning a 4×4 grid 90° clockwise moves row `r`, column `c` to row `c`,
+column `3 - r`. So the top row becomes the right-hand column, which puts PLAY
+on the top-right pad. For a touch, the driver works backwards (physical pad →
+logical pad); for the LEDs, it gives each physical LED the colour of its
+logical pad. Nothing else in the code has to know.
+
+The display turns 180° inside the SSD1306 itself: two start-up commands decide
+which corner is pixel (0, 0), and swapping both turns the picture upside down
+(`OLED_FLIP`). The display's menu grid and touch ripples use the same pad map,
+so the labels sit where the pads physically are.
+
+---
+
 ## 8. The pluck delay: ping-pong echoes (`PluckDelay.cpp`)
 
 Two delay lines, left and right, connected in a ring:
@@ -579,6 +598,7 @@ AmbientTrellis/
     Rng.h                   fast random numbers (xorshift)
     EventQueue.h            core 0 -> core 1 message queue
     SineTable.*             one sine cycle, shared by the synths
+    PadMap.h                turning the pad grid (logical <-> physical pads)
   src/audio/                (core 1)
     AudioEngine.*           receives events, mixes everything
     Events.h                message types

@@ -19,6 +19,11 @@ constexpr int PIN_OLED_SCL = 17;
 constexpr uint32_t OLED_I2C_HZ = 400000;
 constexpr uint8_t OLED_ADDR = 0x3C;
 
+// Orientation
+constexpr int  PAD_ROTATION = 90;            // pads: 0, 90, 180 or 270 degrees clockwise
+constexpr bool OLED_FLIP = true;             // display upside down (rotated 180 degrees)
+constexpr bool OLED_GRID_FOLLOWS_PADS = true;  // menu labels on the display sit like the pads
+
 // SHIFT key, wired to GND, internal pull-up
 constexpr int PIN_SHIFT = 6;
 

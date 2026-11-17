@@ -1,6 +1,7 @@
 #include "Screen.h"
 #include <math.h>
 #include <string.h>
+#include "../util/PadMap.h"
 
 namespace {
 
@@ -38,9 +39,16 @@ void Screen::rippleRandom(float maxRadius) {
   addRipple(10 + frand(rng_) * 108, 8 + frand(rng_) * 48, maxRadius);
 }
 
+// Where a logical pad sits on the display grid (4 columns of 32 px, 4 rows of 16 px):
+// like the pads on the board if OLED_GRID_FOLLOWS_PADS, otherwise unturned.
+static uint8_t gridCell(uint8_t pad) {
+  return cfg::OLED_GRID_FOLLOWS_PADS ? padmap::toPhysical(pad) : pad;
+}
+
 void Screen::ripplePad(uint8_t pad) {
-  // The pond is the pad grid, stretched: 4 columns of 32 px, 4 rows of 16 px.
-  addRipple((float)(pad % 4) * 32 + 16, (float)(pad / 4) * 16 + 8, 14);
+  // The pond is the pad grid, stretched.
+  uint8_t cell = gridCell(pad);
+  addRipple((float)(cell % 4) * 32 + 16, (float)(cell / 4) * 16 + 8, 14);
 }
 
 void Screen::overlay(const char *title, const char *value, uint32_t nowMs, uint32_t ms) {
@@ -160,7 +168,8 @@ void Screen::drawPond(Canvas &c) const {
 
 void Screen::drawMenuList(Canvas &c, const Settings &s) const {
   for (int i = 0; i < P_COUNT; i++) {
-    int cx = (i % 4) * 32 + 16, y = (i / 4) * 16 + 4;
+    uint8_t cell = gridCell((uint8_t)i);
+    int cx = (cell % 4) * 32 + 16, y = (cell / 4) * 16 + 4;
     const char *label = Settings::shortName((Param)i);
     if (i == P_PLAY && !s.playing) label = "STOP";
     c.textCentered(cx, y, label);
