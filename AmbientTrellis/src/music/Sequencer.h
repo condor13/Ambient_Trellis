@@ -51,7 +51,8 @@ class Sequencer {
   uint8_t lastPluckNote() const { return lastSent_; }
   int notes(uint8_t *out) const;         // current chord notes (MIDI)
 
-  static const char *noteName(uint8_t pc);
+  // Note name spelled for the current key (G# in B Dorian, Ab in F Dorian).
+  const char *noteName(uint8_t pc) const;
 
  private:
   void applyTempo();

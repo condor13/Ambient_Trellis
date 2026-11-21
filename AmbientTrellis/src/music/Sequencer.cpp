@@ -18,8 +18,13 @@ const Scale SCALES[Sequencer::NUM_SCALES] = {
   {"Lydian", {0, 2, 4, 6, 7, 9, 11}, {4, 3, 2, 0, 2, 2, 1}},
 };
 
-const char *NOTE_NAMES[12] = {"C", "C#", "D", "Eb", "E", "F",
-                              "F#", "G", "Ab", "A", "Bb", "B"};
+// Note names with sharps and with flats. Which one a key uses depends on its
+// "parent" major key (the major scale with the same notes): F, Bb, Eb, Ab and
+// Db major are written with flats, the others with sharps.
+const char *SHARP_NAMES[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+const char *FLAT_NAMES[12]  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
+// How far each scale's parent major key is above its root (Minor, Dorian, Major, Lydian)
+const uint8_t PARENT_MAJOR[4] = {3, 10, 0, 7};
 
 constexpr int UPPER_LO = 50;   // D3
 constexpr int UPPER_HI = 76;   // E5
@@ -39,7 +44,11 @@ void sortNotes(uint8_t *n, int count) {
 
 }  // namespace
 
-const char *Sequencer::noteName(uint8_t pc) { return NOTE_NAMES[pc % 12]; }
+const char *Sequencer::noteName(uint8_t pc) const {
+  uint8_t parent = (uint8_t)((root_ + PARENT_MAJOR[scale_ % 4]) % 12);
+  bool flats = parent == 5 || parent == 10 || parent == 3 || parent == 8 || parent == 1;
+  return (flats ? FLAT_NAMES : SHARP_NAMES)[pc % 12];
+}
 const char *Sequencer::scaleName() const { return SCALES[scale_].name; }
 
 void Sequencer::begin(AudioEngine *engine, uint32_t seed) {
@@ -260,7 +269,7 @@ void Sequencer::makeName(int degree, bool add9) {
   else if (i3 == 4 && i5 == 6 && i7 == 11) q = "maj7#11";
   else                                     q = "";
 
-  strcpy(name_, NOTE_NAMES[(r + root_) % 12]);
+  strcpy(name_, noteName((uint8_t)((r + root_) % 12)));
   strcat(name_, q);
 }
 

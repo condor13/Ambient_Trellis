@@ -268,9 +268,9 @@ static void taskSerial(uint32_t now) {
     shown = seq.chordCount();
     uint8_t n[Sequencer::MAX_NOTES];
     int k = seq.notes(n);
-    Serial.printf("%s %s  |  %-8s", Sequencer::noteName(seq.root()), seq.scaleName(),
+    Serial.printf("%s %s  |  %-8s", seq.noteName(seq.root()), seq.scaleName(),
                   seq.chordName());
-    for (int i = 0; i < k; i++) Serial.printf(" %s%d", Sequencer::noteName(n[i]), n[i] / 12 - 1);
+    for (int i = 0; i < k; i++) Serial.printf(" %s%d", seq.noteName(n[i]), n[i] / 12 - 1);
     Serial.println();
   }
 
@@ -278,7 +278,7 @@ static void taskSerial(uint32_t now) {
   if (seq.pluckCount() != plucksShown) {
     plucksShown = seq.pluckCount();
     uint8_t p = seq.lastPluckNote();
-    Serial.printf("    pluck %s%d\n", Sequencer::noteName(p), p / 12 - 1);
+    Serial.printf("    pluck %s%d\n", seq.noteName(p), p / 12 - 1);
   }
 
   // One block is 1000 µs of audio.
