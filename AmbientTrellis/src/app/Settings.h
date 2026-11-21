@@ -5,7 +5,7 @@
 // for the display, and how it maps to the sound) and applies it.
 //
 // Pad layout (same as the menu grid):
-//   PLAY  DENS  ROOT  DRFT
+//   PLAY  DENS  ROOT  PVOL
 //   VERB  LFO   BPM   BARS
 //   ATK   REL   BRIT  VOL
 //   DLY   DMOD  LITE  SLEEP
@@ -17,7 +17,7 @@ class Sequencer;
 class PondLeds;
 
 enum Param : uint8_t {
-  P_PLAY = 0, P_DENS, P_ROOT, P_DRFT,
+  P_PLAY = 0, P_DENS, P_ROOT, P_PVOL,
   P_VERB, P_LFO, P_BPM, P_BARS,
   P_ATK, P_REL, P_BRIT, P_VOL,
   P_DLY, P_DMOD, P_LITE, P_SLEEP,

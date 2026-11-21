@@ -14,6 +14,7 @@ struct SoundParams {
   volatile uint32_t brightness  = 22000;   // max FM index (0..52000)
 
   // Plucks (Q8: 256 = 1.0)
+  volatile uint32_t pluckLevel  = 256;     // pluck volume (PVOL), up to 512
   volatile uint32_t pluckDry    = 70;      // plucks heard directly (soft)
   volatile uint32_t pluckSend   = 256;     // plucks into the reverb (a lot)
   volatile uint32_t pluckDecayMs = 3200;   // how long a pluck rings

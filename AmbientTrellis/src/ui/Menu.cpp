@@ -9,7 +9,7 @@ constexpr uint8_t B_FULL = 255;
 
 // One colour per row of the menu, all different from the pond's look.
 constexpr Rgb ROW[4] = {
-  {255, 110,   0},   // row 1: PLAY DENS ROOT DRFT   amber
+  {255, 110,   0},   // row 1: PLAY DENS ROOT PVOL   amber
   {150,   0, 255},   // row 2: VERB LFO BPM BARS     violet
   {255, 255, 255},   // row 3: ATK REL BRIT VOL      white
   {  0, 190, 255},   // row 4: DLY DMOD LITE SLEEP   cyan

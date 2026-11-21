@@ -7,9 +7,9 @@
 
 namespace {
 
-const char *SHORT[P_COUNT] = {"PLAY", "DENS", "ROOT", "DRFT", "VERB", "LFO", "BPM", "BARS",
+const char *SHORT[P_COUNT] = {"PLAY", "DENS", "ROOT", "PVOL", "VERB", "LFO", "BPM", "BARS",
                               "ATK", "REL", "BRIT", "VOL", "DLY", "DMOD", "LITE", "SLEEP"};
-const char *LONG[P_COUNT] = {"PLAY", "DENSITY", "ROOT", "DRIFT", "REVERB", "LFO", "TEMPO", "BARS",
+const char *LONG[P_COUNT] = {"PLAY", "DENSITY", "ROOT", "PLUCK VOL", "REVERB", "LFO", "TEMPO", "BARS",
                              "ATTACK", "RELEASE", "BRIGHT", "VOLUME", "DELAY", "DELAY MODE",
                              "LIGHT", "SLEEP"};
 const char *SCALE_NAMES[4] = {"MINOR", "DORIAN", "MAJOR", "LYDIAN"};
@@ -24,6 +24,7 @@ uint32_t brightness(uint8_t v) { return 2500u + 3300u * (v - 1); }  // FM index 
 uint32_t volume(uint8_t v)    { return 16u * v; }                   // 16 .. 256
 uint32_t reverbWet(uint8_t v) { return 17u * (v - 1); }             // 0 (dry) .. 255
 uint32_t delayMix(uint8_t v)  { return 17u * (v - 1); }             // 0 (off) .. 255
+uint32_t pluckLevel(uint8_t v) { return 32u * v; }                  // 8 = as designed, 16 = twice as loud
 uint8_t  bpm(uint8_t v)       { return (uint8_t)(52 + v); }         // 53 .. 68
 // LFO period: 1 = one minute, 16 = two seconds, evenly spaced on a log scale
 uint32_t lfoMs(uint8_t v) {
@@ -36,7 +37,7 @@ void Settings::setDefaults() {
   value[P_PLAY]  = 1;
   value[P_DENS]  = 4;     // rare plucks
   value[P_ROOT]  = 3;     // D
-  value[P_DRFT]  = 6;
+  value[P_PVOL]  = 8;     // plucks as loud as designed
   value[P_VERB]  = 10;    // ~60% wet
   value[P_LFO]   = 5;     // ~24 s
   value[P_BPM]   = 8;     // 60 BPM
@@ -108,7 +109,7 @@ void Settings::apply(Param p, AudioEngine &eng, Sequencer &seq, PondLeds &pond, 
       seq.setScale(scale);
       seq.goHome(nowMs);          // move to the new key now, from its home chord
       break;
-    case P_DRFT:  seq.setDrift(v); break;
+    case P_PVOL:  s.pluckLevel = pluckLevel(v); break;
     case P_VERB:  s.reverbWet = reverbWet(v); break;
     case P_LFO:   s.lfoMs = lfoMs(v); break;
     case P_BPM:   seq.setBpm(bpm(v)); break;

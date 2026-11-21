@@ -135,13 +135,13 @@ so PLAY is the top-right pad and each "row" of parameters runs down a column:
 | DLY | ATK | VERB | **PLAY** |
 | DMOD ⁽⁴⁾ | REL | LFO | DENS |
 | LITE | BRIT | BPM | ROOT |
-| SLEEP | VOL | BARS ⁽⁴⁾ | DRFT |
+| SLEEP | VOL | BARS ⁽⁴⁾ | PVOL |
 
 Unturned, in the order the parameters are numbered:
 
 | | 1 | 2 | 3 | 4 |
 |---|---|---|---|---|
-| **Group 1** | PLAY | DENS | ROOT | DRFT |
+| **Group 1** | PLAY | DENS | ROOT | PVOL |
 | **Group 2** | VERB | LFO | BPM | BARS ⁽⁴⁾ |
 | **Group 3** | ATK | REL | BRIT | VOL |
 | **Group 4** | DLY | DMOD ⁽⁴⁾ | LITE | SLEEP |
@@ -155,7 +155,7 @@ Unturned, in the order the parameters are numbered:
 | 1 | PLAY | start / stop | playing |
 | 2 | DENS | pluck density, sparse → dense | 4 (rare) |
 | 3 | ROOT | pads 1–12 = C … B; pads 13–16 = scale: Minor, Dorian, Major, Lydian. Changing it moves to the new key's home chord right away. | D Dorian |
-| 4 | DRFT | how far the progression wanders, 1 = stays home | 6 |
+| 4 | PVOL | pluck volume (8 = normal, 16 = twice as loud) | 8 |
 | 5 | VERB | reverb, dry → wet | 10 |
 | 6 | LFO | very slow (~1 min) → faster (~2 s) | 5 (~24 s) |
 | 7 | BPM | 53 → 68 | 60 |

@@ -56,14 +56,15 @@ void AUDIO_FAST(AudioEngine::render)(int16_t *out, int frames) {
   // Two in a row cut the highs twice as steeply, so the plucks sound soft
   // and round without losing their body.
   const int32_t tone = (int32_t)params.pluckTone;
+  const int32_t pLvl = (int32_t)params.pluckLevel;
   int32_t aL = plkLp_[0], aR = plkLp_[1], bL = plkLp_[2], bR = plkLp_[3];
   for (int i = 0; i < frames; i++) {
     aL += ((plkL_[i] - aL) * tone) >> 15;
     aR += ((plkR_[i] - aR) * tone) >> 15;
     bL += ((aL - bL) * tone) >> 15;
     bR += ((aR - bR) * tone) >> 15;
-    plk_[2 * i]     = (bL * vol) >> 8;
-    plk_[2 * i + 1] = (bR * vol) >> 8;
+    plk_[2 * i]     = (((bL * vol) >> 8) * pLvl) >> 8;
+    plk_[2 * i + 1] = (((bR * vol) >> 8) * pLvl) >> 8;
   }
   plkLp_[0] = aL; plkLp_[1] = aR; plkLp_[2] = bL; plkLp_[3] = bR;
 
