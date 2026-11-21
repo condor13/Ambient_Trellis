@@ -1,5 +1,5 @@
-// Ambient Trellis - step 6: generative pads, reverb, plucks, NeoTrellis pond,
-// SHIFT menu, OLED koi pond.
+// Ambient Trellis: generative pads, reverb, plucks, NeoTrellis pond,
+// SHIFT menu, OLED koi pond, tilt and shake, settings saved to flash.
 //
 // Core 0: sequencer, pads, LEDs, menu, display
 // Core 1: audio engine -> PCM5102A over I2S
@@ -16,13 +16,14 @@
 //   src/music/     the generative sequencer (core 0)
 //   src/app/       the 16 settings and what they mean (core 0)
 //   src/ui/        what the LEDs show: pond and menu (plain logic, core 0)
-//   src/hw/        hardware drivers: NeoTrellis, OLED (core 0)
+//   src/hw/        hardware drivers: NeoTrellis, OLED, LIS3DH, flash storage (core 0)
 // docs/HOW_IT_WORKS.md explains the math.
 //
 // Controls:
 //   The box starts playing by itself.
 //   Touch a pad = pluck a note of the current chord (glows blue).
 //   SHIFT (GP6) = open the menu / back / close (see README).
+//   Tilt the box = more adventurous music. Shake it = a shower of plucks.
 //   Serial Monitor (115200) shows chords, plucks, menu changes and the audio load.
 
 #ifdef USE_TINYUSB
@@ -33,6 +34,8 @@
 #include "src/Config.h"
 #include "src/app/Settings.h"
 #include "src/audio/AudioEngine.h"
+#include "src/app/Motion.h"
+#include "src/hw/Lis3dh.h"
 #include "src/hw/Oled.h"
 #include "src/hw/SettingsStore.h"
 #include "src/hw/TrellisPads.h"
@@ -50,6 +53,8 @@ Menu menu;
 Settings settings;
 Oled oled;
 SettingsStore store;
+Lis3dh lis;
+Motion motion;
 Screen screen;
 Canvas canvas;
 I2S i2s(OUTPUT);
@@ -90,6 +95,8 @@ void setup() {
   if (!pads.begin()) Serial.println("NeoTrellis not found (check I2C wiring). Playing without pads.");
   Wire1.setClock(cfg::I2C_HZ);      // the seesaw library may reset it
   if (!oled.begin(cfg::OLED_ADDR)) Serial.println("OLED not found at 0x3C on GP16/17. Playing without display.");
+  if (lis.begin()) Serial.printf("LIS3DH found at 0x%02X.\n", lis.address());
+  else Serial.println("LIS3DH not found: no tilt or shake.");
 
   seq.begin(&engine, rp2040.hwrand32());
   pond.begin(rp2040.hwrand32(), millis());
@@ -220,6 +227,22 @@ static void taskShift(uint32_t now) {
   }
 }
 
+// Tilt and shake, 50 times a second.
+static void taskMotion(uint32_t now) {
+  static uint32_t last = 0;
+  if (!lis.ok() || now - last < 20) return;
+  last = now;
+  int32_t x, y, z;
+  if (!lis.read(x, y, z)) return;
+  if (motion.update(x, y, z, now)) {           // a shake: stir the pond
+    Serial.println("[SHAKE]");
+    seq.shower(now);
+    for (int i = 0; i < 3; i++) screen.rippleRandom(30);
+  }
+  seq.setDrift(motion.drift());               // tilt = how adventurous the music is
+  seq.setLeap(motion.leap());
+}
+
 // Save the settings 5 s after the last change, once the menu is closed.
 static void taskSave(uint32_t now) {
   static uint32_t saved = 0;
@@ -264,8 +287,9 @@ static void taskSerial(uint32_t now) {
     loadMs = now;
     uint32_t us = audioUsMax;
     audioUsMax = 0;
-    Serial.printf("audio load (worst block): %lu%%  @ %lu MHz\n",
-                  (unsigned long)(us / 10), (unsigned long)(rp2040.f_cpu() / 1000000));
+    Serial.printf("audio load (worst block): %lu%%  @ %lu MHz   tilt %d%%\n",
+                  (unsigned long)(us / 10), (unsigned long)(rp2040.f_cpu() / 1000000),
+                  (int)(motion.tilt() * 100));
   }
 }
 
@@ -276,6 +300,7 @@ void loop() {
   taskKeys(now);
   taskLeds(now);
   taskDisplay(now);
+  taskMotion(now);
   taskSleep(now);
   taskSave(now);
   taskSerial(now);

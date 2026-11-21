@@ -148,8 +148,31 @@ void Sequencer::touch(uint8_t pad) {
   }
 }
 
-// A chord note in the high register (C5..G6), preferably close to the last
-// pluck so the little melody moves in small steps.
+void Sequencer::shower(uint32_t nowMs) {
+  // Chord notes in the high register, from low to high, a few of them.
+  const int LO = 72, HI = 91;
+  uint8_t notes[24];
+  int n = 0;
+  for (int k = LO; k <= HI && n < 24; k++)
+    for (int i = 0; i < nCur_; i++)
+      if (cur_[i] % 12 == k % 12) { notes[n++] = (uint8_t)k; break; }
+  if (n == 0) return;
+  int start = (int)pluckRng_.below((uint32_t)(n > 4 ? n - 4 : 1));
+  uint32_t t = nowMs;
+  for (int j = 0; j < 5 && start + j < n; j++) {
+    for (auto &p : pluckPend_) {
+      if (p.used) continue;
+      p = Pending{notes[start + j], (uint8_t)pluckRng_.range(50, 72), t, true};
+      break;
+    }
+    t += (uint32_t)pluckRng_.range(120, 260);   // a little uneven, like drops
+  }
+  lastPluck_ = notes[start];
+}
+
+// A chord note in the high register (C5..G6), preferably within `leap_`
+// semitones of the last pluck, so the little melody moves in small steps
+// (bigger steps when the box is tilted).
 uint8_t Sequencer::pickPluckNote() {
   const int LO = 72, HI = 91;
   uint8_t near[24], any[24];
@@ -160,7 +183,7 @@ uint8_t Sequencer::pickPluckNote() {
     if (!inChord) continue;
     any[nAny++] = (uint8_t)n;
     int dist = n > lastPluck_ ? n - lastPluck_ : lastPluck_ - n;
-    if (dist > 0 && dist <= 7) near[nNear++] = (uint8_t)n;
+    if (dist > 0 && dist <= leap_) near[nNear++] = (uint8_t)n;
   }
   uint8_t pick;
   if (nNear) pick = near[pluckRng_.below((uint32_t)nNear)];

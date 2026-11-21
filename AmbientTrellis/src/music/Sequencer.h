@@ -28,6 +28,12 @@ class Sequencer {
   // A pad was touched: pluck a note of the current chord ("touching water").
   void touch(uint8_t pad);
 
+  // A shake: a little shower of plucks rising through the chord.
+  void shower(uint32_t nowMs);
+
+  // Largest step between two plucks in semitones (7 = calm, 12 = adventurous).
+  void setLeap(uint8_t semitones) { leap_ = semitones; }
+
   // Settings (menu values later)
   void setRoot(uint8_t pc)    { root_ = pc % 12; }
   void setScale(uint8_t s)    { scale_ = s % NUM_SCALES; }
@@ -87,7 +93,8 @@ class Sequencer {
   uint8_t lastPluck_ = 79;
   uint8_t lastSent_ = 0;
   uint32_t pluckCount_ = 0;
-  Pending pluckPend_[4];
+  Pending pluckPend_[8];
+  uint8_t leap_ = 7;
 
   char name_[12] = "-";
 };
