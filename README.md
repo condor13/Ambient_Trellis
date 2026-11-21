@@ -127,29 +127,33 @@ pad; **touching a pad** plucks a note of the current chord and that pad glows.
 SHIFT + PLAY toggles start/stop directly. Stop lets the chord and reverb fade
 out naturally, and Start fades the first chord in.
 
-The menu is turned 90° clockwise on the pads (`PAD_ROTATION` in `src/Config.h`),
-so PLAY is the top-right pad and each "row" of parameters runs down a column:
+On the box, seen from the display side, each group of four parameters is one
+column, front to back. PLAY is the front-left pad:
 
-| | | | |
+| amber | violet | white | cyan |
 |---|---|---|---|
-| DLY | ATK | VERB | **PLAY** |
-| DMOD ⁽⁴⁾ | REL | LFO | DENS |
-| LITE | BRIT | BPM | ROOT |
-| SLEEP | VOL | BARS ⁽⁴⁾ | PVOL |
+| PVOL | BARS ⁽⁴⁾ | VOL | SLEEP |
+| ROOT | BPM | BRIT | LITE |
+| DENS | LFO | REL | DMOD ⁽⁴⁾ |
+| **PLAY** | VERB | ATK | DLY |
 
-Unturned, in the order the parameters are numbered:
+(front, next to the display)
+
+In the order the parameters are numbered:
 
 | | 1 | 2 | 3 | 4 |
 |---|---|---|---|---|
-| **Group 1** | PLAY | DENS | ROOT | PVOL |
-| **Group 2** | VERB | LFO | BPM | BARS ⁽⁴⁾ |
-| **Group 3** | ATK | REL | BRIT | VOL |
-| **Group 4** | DLY | DMOD ⁽⁴⁾ | LITE | SLEEP |
+| **Group 1** (amber) | PLAY | DENS | ROOT | PVOL |
+| **Group 2** (violet) | VERB | LFO | BPM | BARS ⁽⁴⁾ |
+| **Group 3** (white) | ATK | REL | BRIT | VOL |
+| **Group 4** (cyan) | DLY | DMOD ⁽⁴⁾ | LITE | SLEEP |
+
+The way the grid sits on the board is set in `src/Config.h`: `PAD_ROTATION`
+for the pads, and `OLED_FLIP`, `OLED_GRID_FOLLOWS_PADS` and `OLED_GRID_MIRROR`
+for the display.
 
 ⁽⁴⁾ = four options, so only 4 pads are lit.
 
-| # | Parameter | Values |
-|---|---|---|
 | # | Parameter | Values | Default |
 |---|---|---|---|
 | 1 | PLAY | start / stop | playing |
@@ -166,19 +170,25 @@ Unturned, in the order the parameters are numbered:
 | 12 | VOL | master volume | 14 |
 | 13 | DLY | pluck delay amount, 1 = off | 7 |
 | 14 | DMOD | forward / ping-pong / reverse / reverse ping-pong | ping-pong |
-| 15 | LITE | LED (and later display) brightness, very dim at the low end for the bedroom | 10 |
+| 15 | LITE | LED and display brightness, very dim at the low end for the bedroom | 10 |
 | 16 | SLEEP | 1–15 = fade out and stop after 10–150 minutes; 16 = never | never |
 
-Settings will be saved to flash a few seconds after a change (step 8), so the
-box starts the next day with the settings last used. Until then it starts with
-the defaults.
+**Settings are saved to flash** 5 seconds after the last change (once the menu
+is closed), so the box starts the next day as you left it. It always starts
+playing when switched on.
 
 ## Motion (LIS3DH)
 
-General behaviour, not a menu setting:
+The accelerometer is glued to the back of the NeoTrellis board and shares its
+I2C wires (GP26/27, address 0x18 or 0x19, found automatically).
 
-- **Tilt:** affects the randomness (how adventurous the progression and plucks are).
-- **Shake:** to be decided, for example "stirring the pond" with a cascade of plucks.
+- **Tilt** makes the music more adventurous. Only *how much* the box leans
+  counts, not the direction. Flat: the chords stay close to home and the plucks
+  move in small steps. Tilted (up to ~40°): the chords wander further and the
+  plucks leap bigger intervals.
+- **Shake** stirs the pond: a little shower of plucks rising through the chord,
+  and big ripples on the display. A single bump (like pressing a pad) doesn't
+  count, and after a shake there's a 2.5 s pause.
 
 ## Display
 
@@ -191,8 +201,9 @@ General behaviour, not a menu setting:
   parameter's name, its value and the same bar as the pads.
 - LITE also sets the display brightness.
 - The display is mounted upside down, so it is turned 180° (`OLED_FLIP` in
-  `src/Config.h`). Its menu grid follows the turned pads
-  (`OLED_GRID_FOLLOWS_PADS`).
+  `src/Config.h`), and its menu grid is arranged to match the pads as seen
+  from the front.
+- Chord names are spelled for the key: G#m7b5 in B Dorian, Ab in F Dorian.
 
 ## Software design
 
@@ -215,19 +226,24 @@ AmbientTrellis/
   src/audio/                core 1: AudioEngine (mixer), PadSynth, PluckSynth,
                             PluckDelay, Reverb, SoftComp, SoundParams, Events
   src/music/                core 0: Sequencer (chords, voice leading, plucks)
-  src/app/                  core 0: Settings (the 16 menu parameters and what they mean)
+  src/app/                  core 0: Settings (the 16 menu parameters and what they mean),
+                            Motion (tilt and shake from the accelerometer)
   src/ui/                   core 0: PondLeds, Menu, Colour, Screen, Canvas
                             (what the pads and display show; plain logic)
-  src/hw/                   core 0: TrellisPads (NeoTrellis), Oled (SSD1306 driver)
+  src/hw/                   core 0: TrellisPads (NeoTrellis), Oled (SSD1306 driver),
+                            Lis3dh (accelerometer), SettingsStore (flash)
 tools/render_wav.cpp        renders the same code to a WAV file on a computer
 tools/screen_preview.cpp    draws the display frames on a computer (for a GIF)
 ```
 
 ### Libraries
 
-- Raspberry Pi Pico/RP2040 board package (Earle F. Philhower)
-- Adafruit seesaw Library
-- Adafruit LIS3DH
+- Raspberry Pi Pico/RP2040 board package (Earle F. Philhower), which also
+  includes I2S, Wire and EEPROM
+- Adafruit seesaw Library (for the NeoTrellis)
+
+The display and accelerometer drivers are part of this project, so no other
+libraries are needed.
 
 ## Building and uploading
 
@@ -252,24 +268,29 @@ g++ -O2 -std=c++17 -I AmbientTrellis/src tools/render_wav.cpp AmbientTrellis/src
 ./render_wav out.wav 120
 ```
 
-## Current state: step 6
+And the display, as image frames that can be turned into a GIF:
 
-- Generative FM pad chords, plate reverb, rare soft plucks with a pluck delay.
-- **NeoTrellis pond:** chord notes glow in their note colours on random free
-  pads; plucks glow water blue and flicker out. Blue ripple at start-up.
-- **Touch a pad:** plucks a note of the current chord.
-- **SHIFT menu** with all 16 parameters: row colours, sweeps, value bars.
-- **OLED:** koi pond with ripples, text overlays, menu grid and value pages.
-- Serial Monitor (115200 baud) shows chords, plucks, menu changes and the audio load.
-- Settings are not saved yet; tilt and shake not used yet.
+```
+g++ -O2 -std=c++17 -I AmbientTrellis/src tools/screen_preview.cpp AmbientTrellis/src/{audio,music,util,ui,app}/*.cpp -o screen_preview
+mkdir frames && ./screen_preview frames
+ffmpeg -framerate 20 -i frames/f%04d.pbm -vf scale=512:256:flags=neighbor pond.gif
+```
 
-## Roadmap
+## Serial Monitor
 
-1. FM chord pads with generative progression at a fixed tempo
-2. Reverb
-3. Plucks and pluck delay
+At 115200 baud it shows what the box is doing: each chord and pluck, menu
+changes, shakes, settings being saved, and every 5 seconds the audio load
+(worst 1 ms block; about 30% of core 1) and the tilt.
+
+## How it was built
+
+1. FM chord pads with a generative progression
+2. Plate reverb
+3. Karplus-Strong plucks and the pluck delay
 4. NeoTrellis: pond-of-notes LEDs, touch plucks
 5. SHIFT menu
-6. OLED: koi pond and menu
+6. OLED: koi pond, menu pages, text overlays
 7. Tilt and shake
 8. Settings saved to flash
+
+[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) explains every part.

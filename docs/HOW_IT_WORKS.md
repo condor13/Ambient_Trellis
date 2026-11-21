@@ -209,7 +209,8 @@ Each chord degree has a **weight** (how much it is liked in this scale). Some ar
   make smooth transitions.
 - The home chord (I) gets a bonus.
 - **Drift** turns these bonuses down. Low drift means staying close to home;
-  high drift means wandering more freely.
+  high drift means wandering more freely. Drift comes from **tilting the box**
+  (section 7f): flat = 2, leaning 40° or more = 16.
 
 Then a weighted random choice picks the next chord. It's like a die where some
 sides are bigger than others.
@@ -218,6 +219,15 @@ sides are bigger than others.
 
 For every new note, the code picks the octave that's **closest to the centre of
 the previous chord**. So the voices move by small steps instead of jumping.
+
+### Spelling the names
+
+The same note can be written two ways: G# or Ab. Which one is right depends on
+the key. Every one of our scales has a "parent" major scale with exactly the
+same notes: B Dorian has the notes of A major, F Dorian those of Eb major.
+Major keys are written either with sharps or with flats (F, Bb, Eb, Ab and Db
+major use flats). So the code finds the parent major key, and picks sharps or
+flats from that. That's why B Dorian shows G#m7b5, but F Dorian shows Ab.
 
 Details:
 - The centre slowly pulls back towards D4, so the chords never drift off too
@@ -306,7 +316,8 @@ chance per 8th note = density² × 0.35%      (density 4 → 5.6%, about one eve
 ```
 
 The note is always **a note of the current chord**, in the high register
-(C5–G6), preferably within a fifth of the previous pluck. So the plucks make a
+(C5–G6), preferably within a fifth of the previous pluck (up to an octave when
+the box is tilted). So the plucks make a
 little, slow melody that can never sound wrong. Each one is up to 60 ms late at
 random, for a human feel.
 
@@ -444,6 +455,57 @@ The display turns 180° inside the SSD1306 itself: two start-up commands decide
 which corner is pixel (0, 0), and swapping both turns the picture upside down
 (`OLED_FLIP`). The display's menu grid and touch ripples use the same pad map,
 so the labels sit where the pads physically are.
+
+---
+
+## 7f. Tilt and shake (`src/app/Motion.cpp`, `src/hw/Lis3dh.cpp`)
+
+The LIS3DH measures acceleration on three axes (x, y, z) in milli-g, where
+1000 is gravity. A box that's sitting still feels only gravity, pointing down.
+
+**Tilt.** Lying flat, gravity points straight through the board (all z). When
+the box leans, some of it shows up sideways (x and y). The sideways part
+divided by the whole is the **sine of the lean angle**:
+
+```
+lean = sqrt(x² + y²) / sqrt(x² + y² + z²)      0 flat, 0.5 at 30°, 0.71 at 45°
+```
+
+That's the same whichever way the box leans, so it doesn't matter how the
+sensor is glued. It's smoothed (about half a second), turned into 0..1 with a
+small dead zone (so a slightly uneven table counts as flat), and then sets:
+
+- **drift** of the chord progression: 2 (flat) → 16 (leaning ~40°)
+- **the largest pluck step:** 7 semitones (flat) → 12 (leaning)
+
+**Shake.** Moving slowly, the total acceleration stays close to 1000 mg.
+Shaking makes it jump far above and below. Each reading adds its jolt (how
+far from 1000) to an "energy" that also fades by 15% per reading. One bump
+fades away before it adds up; several strong jolts within a moment cross the
+threshold. Then:
+- the sequencer plays a **shower**: five chord notes rising, 120–260 ms apart,
+  like drops;
+- the display gets three big ripples;
+- shaking is ignored for 2.5 s, so one shake is one shower.
+
+---
+
+## 7g. Saving the settings (`src/hw/SettingsStore.cpp`)
+
+The Pico has no separate EEPROM, so the Arduino-Pico core uses the last 4 KB
+sector of the flash chip for it. The settings take 24 bytes: two letters
+("AT"), a version number, the 16 values, the scale and a checksum. On start-up
+they are only used if the letters, version, checksum and every value's range
+are right; otherwise (e.g. the very first start) the defaults are used.
+
+**Flash writing pauses both cores.** Flash has to be erased before it's
+written, which takes about 45 ms, and while that happens no code can run from
+flash. The core pauses the other core for that moment. Two things keep the
+music going:
+- it saves rarely: 5 seconds after the last change, with the menu closed, and
+  only if something really changed;
+- the audio buffer holds 64 ms of sound (16 × 128 samples), so the DAC keeps
+  playing through the pause.
 
 ---
 
@@ -611,7 +673,8 @@ AmbientTrellis/
   src/music/                (core 0)
     Sequencer.*             chords, voice leading, plucks, touch
   src/app/                  (core 0)
-    Settings.*              the 16 menu parameters: values, names, meaning
+    Settings.*              the 16 menu parameters: values, names, meaning, saving format
+    Motion.*                tilt and shake from accelerometer readings
   src/ui/                   (core 0)
     PondLeds.*              the pond of notes on the pads
     Menu.*                  the SHIFT menu (state machine + colours)
@@ -621,6 +684,8 @@ AmbientTrellis/
   src/hw/                   (core 0)
     TrellisPads.*           NeoTrellis keys and LEDs over I2C
     Oled.*                  SSD1306 display driver, sends a picture in 8 strips
+    Lis3dh.*                accelerometer driver
+    SettingsStore.*         settings in flash (EEPROM emulation)
 tools/
   render_wav.cpp            runs the same code on a computer and writes a WAV
   screen_preview.cpp        draws display frames on a computer
