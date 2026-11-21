@@ -110,7 +110,7 @@ pad; **touching a pad** plucks a note of the current chord and that pad glows.
 - Each group of parameters has its own colour: group 1 **amber**, 2 **violet**,
   3 **white**, 4 **cyan**. PLAY shows green when playing, red when stopped.
 - A value page uses its parameter's colour as a **bar**: pads 1 up to the value
-  at full brightness, the rest at 20%. Four-option parameters use only 4 pads.
+  at full brightness, the rest dimmed (30 of 255). Four-option parameters use only 4 pads.
 - Exceptions:
   - ROOT: the 12 roots in their note colours, plus 4 indigo scale pads
   - LITE: every pad shows its own brightness level, the current one in white

@@ -40,9 +40,13 @@ void Screen::rippleRandom(float maxRadius) {
 }
 
 // Where a logical pad sits on the display grid (4 columns of 32 px, 4 rows of 16 px):
-// like the pads on the board if OLED_GRID_FOLLOWS_PADS, otherwise unturned.
+// like the pads on the board if OLED_GRID_FOLLOWS_PADS, otherwise unturned;
+// then mirrored left <-> right if OLED_GRID_MIRROR. (Only the boxes move; the
+// text itself stays readable.)
 static uint8_t gridCell(uint8_t pad) {
-  return cfg::OLED_GRID_FOLLOWS_PADS ? padmap::toPhysical(pad) : pad;
+  uint8_t cell = cfg::OLED_GRID_FOLLOWS_PADS ? padmap::toPhysical(pad) : pad;
+  if (cfg::OLED_GRID_MIRROR) cell = (uint8_t)((cell / 4) * 4 + (3 - cell % 4));
+  return cell;
 }
 
 void Screen::ripplePad(uint8_t pad) {

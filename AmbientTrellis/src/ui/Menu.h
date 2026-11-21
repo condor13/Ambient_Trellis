@@ -7,7 +7,7 @@
 //                      on the parameter list: close the menu
 //   (10 s without a touch also closes the menu)
 //
-// Value pages are bars: pads 1..value at full brightness, the rest at 20%.
+// Value pages are bars: pads 1..value at full brightness, the rest dimmed (30 of 255).
 // Exceptions: PLAY toggles straight away (green = playing, red = stopped);
 // ROOT shows note colours for the 12 roots and indigo for the 4 scales;
 // LIGHT shows every brightness level so you can see them.
