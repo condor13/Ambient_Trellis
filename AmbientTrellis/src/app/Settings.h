@@ -43,6 +43,13 @@ struct Settings {
   static const char *longName(Param p);      // "REVERB" (value page, overlay)
   void valueText(Param p, char *buf, int size) const;   // "60 BPM", "D DORIAN" ...
 
+  // Saving: the settings as a few bytes (with a check), and back.
+  // unpack() returns false (and changes nothing) if the bytes are not valid
+  // saved settings, e.g. on the very first start.
+  static constexpr int PACKED_SIZE = 24;
+  void pack(uint8_t *out) const;
+  bool unpack(const uint8_t *in);
+
   // LED master brightness from LITE (0..255)
   uint8_t ledBrightness() const;
   // SLEEP in minutes, 0 = never

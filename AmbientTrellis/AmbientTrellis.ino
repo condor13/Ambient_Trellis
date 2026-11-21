@@ -34,6 +34,7 @@
 #include "src/app/Settings.h"
 #include "src/audio/AudioEngine.h"
 #include "src/hw/Oled.h"
+#include "src/hw/SettingsStore.h"
 #include "src/hw/TrellisPads.h"
 #include "src/music/Sequencer.h"
 #include "src/ui/Canvas.h"
@@ -48,6 +49,7 @@ PondLeds pond;
 Menu menu;
 Settings settings;
 Oled oled;
+SettingsStore store;
 Screen screen;
 Canvas canvas;
 I2S i2s(OUTPUT);
@@ -58,6 +60,14 @@ volatile bool engineReady = false;
 volatile uint32_t audioUsMax = 0;   // longest block render time (µs)
 
 // ---------------------------------------------------------------- core 0
+
+// Start the sleep timer (when SLEEP is set, or when playing starts).
+static void armSleep(uint32_t now) {
+  uint32_t min = settings.sleepMinutes();
+  // (| 1 so a running timer is never exactly 0, which means "off")
+  sleepAtMs = min ? ((now + min * 60000u) | 1u) : 0;
+}
+
 
 void setup() {
   Serial.begin(115200);
@@ -84,17 +94,14 @@ void setup() {
   seq.begin(&engine, rp2040.hwrand32());
   pond.begin(rp2040.hwrand32(), millis());
   settings.setDefaults();
+  store.begin();
+  if (store.load(settings)) Serial.println("Settings loaded from flash.");
+  else Serial.println("No saved settings: using the defaults.");
   settings.applyAll(engine, seq, pond, millis());
+  armSleep(millis());
   oled.setContrast(settings.ledBrightness());
   screen.begin(rp2040.hwrand32(), millis());
   screen.overlay("AMBIENT", "TRELLIS", millis(), 2500);
-}
-
-// Start the sleep timer (when SLEEP is set, or when playing starts).
-static void armSleep(uint32_t now) {
-  uint32_t min = settings.sleepMinutes();
-  // (| 1 so a running timer is never exactly 0, which means "off")
-  sleepAtMs = min ? ((now + min * 60000u) | 1u) : 0;
 }
 
 // A short text over the pond (and in the Serial Monitor).
@@ -112,6 +119,7 @@ static void showParam(Param p) {
 
 // A menu press or SHIFT did something: apply it and show it.
 static bool changedInMenu = false;
+static uint32_t lastChangeMs = 0;     // for saving
 static Param lastChanged = P_PLAY;
 
 static void handleMenu(const Menu::Result &r, uint32_t now) {
@@ -122,6 +130,7 @@ static void handleMenu(const Menu::Result &r, uint32_t now) {
     if (r.param == P_LITE) oled.setContrast(settings.ledBrightness());
     changedInMenu = true;
     lastChanged = r.param;
+    lastChangeMs = now;
     showParam(r.param);
   } else if (r.opened || r.back) {
     if (menu.onValuePage()) showParam(menu.page());
@@ -211,6 +220,14 @@ static void taskShift(uint32_t now) {
   }
 }
 
+// Save the settings 5 s after the last change, once the menu is closed.
+static void taskSave(uint32_t now) {
+  static uint32_t saved = 0;
+  if (lastChangeMs == saved || menu.isOpen() || now - lastChangeMs < 5000) return;
+  saved = lastChangeMs;
+  if (store.save(settings)) Serial.println("[settings saved]");
+}
+
 // Sleep timer: fade out and stop.
 static void taskSleep(uint32_t now) {
   if (sleepAtMs && settings.playing && (int32_t)(now - sleepAtMs) >= 0) {
@@ -260,6 +277,7 @@ void loop() {
   taskLeds(now);
   taskDisplay(now);
   taskSleep(now);
+  taskSave(now);
   taskSerial(now);
 }
 
@@ -271,7 +289,9 @@ void setup1() {
   i2s.setBCLK(cfg::PIN_I2S_BCK);    // LRCK = BCK + 1
   i2s.setDATA(cfg::PIN_I2S_DIN);
   i2s.setBitsPerSample(16);
-  i2s.setBuffers(6, 128);
+  // 16 x 128 frames = 64 ms of audio in the buffer: enough to play on while
+  // core 0 writes the settings to flash (which pauses both cores briefly).
+  i2s.setBuffers(16, 128);
   i2s.begin(cfg::SAMPLE_RATE);
 
   engineReady = true;

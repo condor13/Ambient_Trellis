@@ -54,6 +54,40 @@ void Settings::setDefaults() {
   playing = true;
 }
 
+// Saved layout: "AT" + version, the 16 values, the scale, a checksum.
+// (PLAY is not saved: the box always starts playing when switched on.)
+static constexpr uint8_t SAVE_VERSION = 1;
+
+void Settings::pack(uint8_t *out) const {
+  for (int i = 0; i < PACKED_SIZE; i++) out[i] = 0;
+  out[0] = 'A';
+  out[1] = 'T';
+  out[2] = SAVE_VERSION;
+  for (int p = 0; p < P_COUNT; p++) out[3 + p] = value[p];
+  out[3 + P_COUNT] = scale;
+  uint8_t sum = 0;
+  for (int i = 0; i < PACKED_SIZE - 1; i++) sum = (uint8_t)(sum * 31 + out[i]);
+  out[PACKED_SIZE - 1] = sum;
+}
+
+bool Settings::unpack(const uint8_t *in) {
+  if (in[0] != 'A' || in[1] != 'T' || in[2] != SAVE_VERSION) return false;
+  uint8_t sum = 0;
+  for (int i = 0; i < PACKED_SIZE - 1; i++) sum = (uint8_t)(sum * 31 + in[i]);
+  if (sum != in[PACKED_SIZE - 1]) return false;
+  for (int p = 0; p < P_COUNT; p++) {            // every value must be in range
+    uint8_t v = in[3 + p];
+    uint8_t max = (p == P_ROOT) ? 12 : options((Param)p);
+    if (v < 1 || v > max) return false;
+  }
+  if (in[3 + P_COUNT] > 3) return false;
+  for (int p = 0; p < P_COUNT; p++) value[p] = in[3 + p];
+  scale = in[3 + P_COUNT];
+  value[P_PLAY] = 1;
+  playing = true;
+  return true;
+}
+
 uint8_t Settings::options(Param p) { return (p == P_BARS || p == P_DMOD) ? 4 : 16; }
 const char *Settings::shortName(Param p) { return p < P_COUNT ? SHORT[p] : "?"; }
 const char *Settings::longName(Param p) { return p < P_COUNT ? LONG[p] : "?"; }
