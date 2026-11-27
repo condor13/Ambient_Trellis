@@ -127,6 +127,7 @@ static void showParam(Param p) {
 // A menu press or SHIFT did something: apply it and show it.
 static bool changedInMenu = false;
 static uint32_t lastChangeMs = 0;     // for saving
+static uint32_t stoppedMs = 0;        // when the music was last stopped
 static Param lastChanged = P_PLAY;
 
 static void handleMenu(const Menu::Result &r, uint32_t now) {
@@ -134,6 +135,7 @@ static void handleMenu(const Menu::Result &r, uint32_t now) {
   if (r.changed) {
     settings.apply(r.param, engine, seq, pond, now);
     if (r.param == P_SLEEP || (r.param == P_PLAY && settings.playing)) armSleep(now);
+    if (r.param == P_PLAY && !settings.playing) stoppedMs = now;
     if (r.param == P_LITE) oled.setContrast(settings.ledBrightness());
     changedInMenu = true;
     lastChanged = r.param;
@@ -243,10 +245,14 @@ static void taskMotion(uint32_t now) {
   seq.setLeap(motion.leap());
 }
 
-// Save the settings 5 s after the last change, once the menu is closed.
+// Save the settings, but only when the music is quiet: writing flash pauses
+// both cores for a moment, which you'd hear as a glitch while playing. So it
+// saves once the box is stopped (by PLAY or the sleep timer) and the sound has
+// faded out, with the menu closed and 5 s after the last change.
 static void taskSave(uint32_t now) {
   static uint32_t saved = 0;
-  if (lastChangeMs == saved || menu.isOpen() || now - lastChangeMs < 5000) return;
+  if (lastChangeMs == saved || settings.playing || menu.isOpen()) return;
+  if (now - lastChangeMs < 5000 || now - stoppedMs < 20000) return;
   saved = lastChangeMs;
   if (store.save(settings)) Serial.println("[settings saved]");
 }
@@ -256,6 +262,7 @@ static void taskSleep(uint32_t now) {
   if (sleepAtMs && settings.playing && (int32_t)(now - sleepAtMs) >= 0) {
     sleepAtMs = 0;
     settings.playing = false;
+    stoppedMs = now;
     settings.apply(P_PLAY, engine, seq, pond, now);
     showText("SLEEP", "GOOD NIGHT");
   }

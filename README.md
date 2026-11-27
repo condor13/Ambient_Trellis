@@ -173,9 +173,11 @@ for the display.
 | 15 | LITE | LED and display brightness, very dim at the low end for the bedroom | 10 |
 | 16 | SLEEP | 1–15 = fade out and stop after 10–150 minutes; 16 = never | never |
 
-**Settings are saved to flash** 5 seconds after the last change (once the menu
-is closed), so the box starts the next day as you left it. It always starts
-playing when switched on.
+**Settings are saved to flash** when the music is stopped (by PLAY or the
+sleep timer) and has faded out, so the box starts the next day as you left it.
+Saving pauses the Pico for a moment, so it never happens while playing.
+Settings changed while playing are saved at the next stop. The box always
+starts playing when switched on.
 
 ## Motion (LIS3DH)
 

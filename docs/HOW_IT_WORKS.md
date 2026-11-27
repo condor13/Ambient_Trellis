@@ -499,13 +499,15 @@ they are only used if the letters, version, checksum and every value's range
 are right; otherwise (e.g. the very first start) the defaults are used.
 
 **Flash writing pauses both cores.** Flash has to be erased before it's
-written, which takes about 45 ms, and while that happens no code can run from
-flash. The core pauses the other core for that moment. Two things keep the
-music going:
-- it saves rarely: 5 seconds after the last change, with the menu closed, and
-  only if something really changed;
-- the audio buffer holds 64 ms of sound (16 × 128 samples), so the DAC keeps
-  playing through the pause.
+written, which takes about 45 ms (sometimes longer), and while that happens no
+code can run from flash. The core pauses the other core for that moment, and
+you'd hear it as a small glitch. So it only saves when nobody can hear it:
+- the music is stopped (PLAY or the sleep timer) and has had 20 s to fade out;
+- the menu is closed, 5 s after the last change;
+- and only if something really changed.
+
+Settings changed while playing are saved at the next stop. The audio buffer
+also holds 64 ms of sound (16 × 128 samples) as a safety margin.
 
 ---
 
